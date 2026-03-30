@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>직접투자 · 집중 도메인 비중 모니터링</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+:root{
+  --navy:#1b3a6b;--navy2:#2a5298;--gold:#c8880a;--gold2:#e8a020;
+  --ok:#15803d;--ok-bg:#dcfce7;--ok-bd:#86efac;
+  --warn:#b45309;--warn-bg:#fef3c7;--warn-bd:#fcd34d;
+  --bad:#b91c1c;--bad-bg:#fee2e2;--bad-bd:#fca5a5;
+  --border:#e2e8f0;--bg:#f0f4f8;--sf:#fff;--sf2:#f8fafc;
+  --tx:#0f172a;--tx2:#475569;--tx3:#94a3b8;--r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;background:var(--bg);color:var(--tx);font-size:14px;line-height:1.6}
+
+/* HEADER */
+.hd{background:var(--navy);color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:58px;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.2)}
+.hd-l .title{font-size:15px;font-weight:700;letter-spacing:-.3px}
+.hd-l .sub{font-size:11px;opacity:.5;margin-top:1px}
+.hd-r{display:flex;gap:8px;align-items:center}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;font-family:inherit}
+.btn-sync{background:#22c55e;color:#fff;font-weight:700}
+.btn-sync:hover{background:#16a34a}
+.btn-sync:disabled{background:#6b7280;cursor:default}
+.btn-ghost{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25)}
+.btn-ghost:hover{background:rgba(255,255,255,.22)}
+.btn-gold{background:var(--gold2);color:#fff}
+.btn-gold:hover{background:#f0b429}
+.btn-sm{padding:5px 11px;font-size:12px;border-radius:6px}
+.btn-blue{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;color:#1d4ed8}
+.btn-blue:hover{background:#dbeafe}
+.btn-red{background:var(--bad-bg);color:var(--bad);border:1px solid var(--bad-bd)}
+.btn-green{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-bd)}
+
+/* LAYOUT */
+.wrap{max-width:1440px;margin:0 auto;padding:18px 24px}
+
+/* STATUS BAR */
+.sbar{display:flex;align-items:center;gap:12px;background:var(--sf);border-radius:var(--r);padding:11px 18px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.sdot{width:8px;height:8px;border-radius:50%;background:#d1d5db;flex-shrink:0;transition:all .3s}
+.sdot.ok{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.2)}
+.sdot.err{background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.2)}
+.sdot.spin{background:#facc15;animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.s-txt{font-size:12px;font-weight:700;color:var(--tx2)}
+.s-sub{font-size:11px;color:var(--tx3)}
+.s-time{font-size:11px;color:var(--tx3);margin-left:auto;flex-shrink:0}
+
+/* FILTER BAR */
+.fbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;background:var(--sf);border-radius:var(--r);padding:12px 16px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.flabel{font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.fsel{border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:13px;font-weight:600;color:var(--tx);background:var(--sf);font-family:inherit;cursor:pointer}
+.fsel:focus{outline:none;border-color:var(--navy2)}
+.seg{display:flex;background:var(--sf2);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.sb{padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--tx2);font-family:inherit;transition:all .12s;white-space:nowrap}
+.sb.on{background:var(--navy);color:#fff}
+.sb:hover:not(.on){background:var(--border)}
+.fdiv{width:1px;height:22px;background:var(--border);align-self:center;margin:0 4px}
+.fgroup{display:flex;align-items:center;gap:6px}
+
+/* CARDS */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.card{background:var(--sf);border-radius:var(--r);padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,.07);border-left:4px solid var(--border)}
+.card.cn{border-color:var(--navy)}.card.cg{border-color:var(--gold2)}.card.co{border-color:#22c55e}.card.cb{border-color:#ef4444}
+.cl{font-size:11px;font-weight:700;color:var(--tx2);letter-spacing:.3px;text-transform:uppercase;margin-bottom:7px}
+.cv{font-size:28px;font-weight:800;color:var(--tx);line-height:1}
+.cu{font-size:14px;font-weight:600;color:var(--tx2);margin-left:3px}
+.cs{font-size:11px;color:var(--tx3);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* CHART PANEL */
+.panel{background:var(--sf);border-radius:var(--r);box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden;margin-bottom:16px}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:6px}
+.ph-t{font-size:13px;font-weight:700}
+.pb{padding:14px 18px}
+.leg{display:flex;gap:12px;font-size:11px;color:var(--tx2);flex-wrap:wrap}
+.li{display:flex;align-items:center;gap:4px}
+.lb{width:10px;height:10px;border-radius:2px}
+
+/* TABLE */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;font-weight:700;color:var(--tx2);letter-spacing:.3px;text-transform:uppercase;padding:9px 12px;text-align:right;background:var(--sf2);border-bottom:1px solid var(--border);white-space:nowrap}
+th:first-child,th:nth-child(2){text-align:left}
+td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:12px;text-align:right}
+td:first-child,td:nth-child(2){text-align:left}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafbff}
+tr.key-row td{background:#fffbeb}
+tr.key-row:hover td{background:#fef3c7}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:2px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;border:1px solid transparent}
+.bok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-bd)}
+.bwarn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-bd)}
+.bbad{background:var(--bad-bg);color:var(--bad);border-color:var(--bad-bd)}
+.bnone{background:var(--sf2);color:var(--tx3);border-color:var(--border)}
+.bstar{background:#fef9c3;color:#a16207;border:1px solid #fde68a;font-size:10px;padding:1px 7px}
+
+/* TARGET INPUT */
+.tgt-in{width:58px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-weight:700;text-align:center;font-family:inherit;background:var(--sf2);color:var(--tx)}
+.tgt-in:focus{outline:none;border-color:var(--navy2);background:#fff}
+
+/* PROGRESS BAR */
+.pb2{height:4px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:4px}
+.pf{height:100%;border-radius:3px;transition:width .3s}
+
+/* MODAL */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center}
+.ov.open{display:flex}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:500px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.22)}
+.mh{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.mh-t{font-size:15px;font-weight:800}
+.mclose{cursor:pointer;color:var(--tx2);font-size:22px;line-height:1;background:none;border:none;font-family:inherit}
+.mb{padding:16px 20px;overflow-y:auto;flex:1}
+.mf{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.tip{font-size:12px;color:var(--tx2);background:#f0f4f8;border-radius:7px;padding:8px 12px;margin-bottom:12px;line-height:1.6}
+.trow{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px}
+.trow.key{background:#fffbeb;border-color:#fcd34d}
+.trow-name{flex:1;font-size:13px;font-weight:600}
+.trow input{width:68px;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;text-align:center;font-family:inherit;background:#fff}
+.trow input:focus{outline:none;border-color:var(--navy2)}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120px);background:#1e293b;color:#fff;padding:11px 22px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:9999;transition:transform .35s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.tok{background:#15803d}
+.toast.terr{background:#b91c1c}
+
+/* EMPTY */
+.empty-state{text-align:center;padding:40px 20px;color:var(--tx2)}
+
+/* RESPONSIVE */
+@media(max-width:960px){.cards{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.cards{grid-template-columns:1fr}.wrap{padding:12px}}
+@media print{.hd .hd-r,.fbar .btn,.sbar{display:none!important}.wrap{padding:0}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hd">
+  <div class="hd-l">
+    <div class="title">📊 직접투자 · 집중 도메인 비중 모니터링</div>
+    <div class="sub">구글 시트 실시간 연결 · 중분류(I열) 기준</div>
+  </div>
+  <div class="hd-r">
+    <button class="btn btn-sync" id="sync-btn" onclick="fetchData()">🔄 데이터 새로고침</button>
+    <button class="btn btn-ghost" onclick="openModal()">🎯 목표 비중 설정</button>
+    <button class="btn btn-gold" onclick="doPrint()">🖨 브리핑 출력</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- STATUS BAR -->
+<div class="sbar">
+  <div class="sdot" id="sdot"></div>
+  <div>
+    <div class="s-txt" id="stxt">대기 중 — 데이터 새로고침 버튼을 눌러주세요</div>
+    <div class="s-sub" id="ssub">구글 시트에서 로우데이터를 직접 불러옵니다</div>
+  </div>
+  <div class="s-time" id="stime"></div>
+  <a href="https://docs.google.com/spreadsheets/d/1TQpPtnBowiQKw_dQrol29Gi27PRf7xKzwvUkQaPHW30" target="_blank" class="btn btn-blue btn-sm" style="margin-left:auto;text-decoration:none">↗ 구글 시트 열기</a>
+</div>
+
+<!-- FILTER BAR -->
+<div class="fbar">
+  <div class="fgroup"><span class="flabel">연도</span>
+    <select class="fsel" id="f-year" onchange="renderAll()"><option value="all">전체</option></select>
+  </div>
+  <div class="fgroup"><span class="flabel">분기</span>
+    <select class="fsel" id="f-q" onchange="renderAll()">
+      <option value="all">연간 전체</option>
+      <option value="1">Q1</option><option value="2">Q2</option>
+      <option value="3">Q3</option><option value="4">Q4</option>
+    </select>
+  </div>
+  <div class="fdiv"></div>
+  <div class="fgroup"><span class="flabel">집계</span>
+    <div class="seg">
+      <button class="sb on" id="pm-q" onclick="setPeriod('q')">분기 신규</button>
+      <button class="sb" id="pm-c" onclick="setPeriod('c')">누적</button>
+    </div>
+  </div>
+  <div class="fdiv"></div>
+  <div class="fgroup"><span class="flabel">차트 기준</span>
+    <div class="seg">
+      <button class="sb on" id="mt-a" onclick="setMetric('a')">금액</button>
+      <button class="sb" id="mt-c" onclick="setMetric('c')">건수</button>
+    </div>
+  </div>
+  <div class="fdiv"></div>
+  <div class="fgroup"><span class="flabel">표시</span>
+    <div class="seg">
+      <button class="sb on" id="vw-all" onclick="setView('all')">전체</button>
+      <button class="sb" id="vw-key" onclick="setView('key')">핵심만</button>
+    </div>
+  </div>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="cards">
+  <div class="card cn">
+    <div class="cl">투자 건수</div>
+    <div><span class="cv" id="c-cnt">—</span><span class="cu">건</span></div>
+    <div class="cs" id="c-cnt-s">—</div>
+  </div>
+  <div class="card cg">
+    <div class="cl">투자 금액</div>
+    <div><span class="cv" id="c-amt">—</span><span class="cu" id="c-amt-u">억원</span></div>
+    <div class="cs" id="c-amt-s">—</div>
+  </div>
+  <div class="card co">
+    <div class="cl">✓ 핵심 도메인 달성</div>
+    <div><span class="cv" id="c-ok">—</span><span class="cu">개</span></div>
+    <div class="cs" id="c-ok-s">목표 설정 기준</div>
+  </div>
+  <div class="card cb">
+    <div class="cl">✗ 핵심 도메인 미달</div>
+    <div><span class="cv" id="c-bad">—</span><span class="cu">개</span></div>
+    <div class="cs" id="c-bad-s">목표 설정 기준</div>
+  </div>
+</div>
+
+<!-- CHART -->
+<div class="panel">
+  <div class="ph">
+    <span class="ph-t" id="chart-title">도메인별 비중 차트</span>
+    <div style="display:flex;align-items:center;gap:16px">
+      <div class="leg">
+        <div class="li"><div class="lb" style="background:#3266ad;opacity:.25;border:1.5px solid #3266ad"></div>목표</div>
+        <div class="li"><div class="lb" style="background:#16a34a"></div>달성</div>
+        <div class="li"><div class="lb" style="background:#dc2626"></div>미달</div>
+        <div class="li"><div class="lb" style="background:#64748b"></div>목표없음</div>
+      </div>
+      <div style="font-size:11px;color:var(--tx3)">★ = 핵심 도메인</div>
+    </div>
+  </div>
+  <div class="pb" style="padding:16px 18px">
+    <div id="chart-wrap" style="position:relative"><canvas id="mainChart"></canvas></div>
+    <div id="no-chart" style="text-align:center;padding:40px;color:var(--tx3);display:none">
+      <p style="font-size:32px;margin-bottom:10px">🔄</p>
+      <p>상단의 '데이터 새로고침' 버튼을 눌러주세요</p>
+    </div>
+  </div>
+</div>
+
+<!-- TABLE -->
+<div class="panel">
+  <div class="ph">
+    <span class="ph-t" id="tbl-title">도메인별 상세 현황</span>
+    <span style="font-size:11px;color:var(--tx3)">★ 핵심 도메인 | 목표 비중은 '목표 비중 설정'에서 입력 | 금액 비중 + 건수 비중 동시 표시</span>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr>
+        <th>도메인 (중분류)</th>
+        <th>구분</th>
+        <th>건수</th>
+        <th>건수 비중</th>
+        <th>금액 (만원)</th>
+        <th>금액 비중</th>
+        <th>목표 비중</th>
+        <th>달성 여부</th>
+      </tr></thead>
+      <tbody id="tbl-body"></tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<!-- TARGET MODAL -->
+<div class="ov" id="tgt-modal">
+  <div class="modal">
+    <div class="mh">
+      <span class="mh-t">🎯 핵심 도메인 목표 비중 설정</span>
+      <button class="mclose" onclick="closeModal()">✕</button>
+    </div>
+    <div class="mb">
+      <div class="tip">
+        ★ 핵심 도메인 13개의 목표 비중(%)을 설정하세요.<br>
+        비워두면 목표 없이 수치만 표시됩니다. 설정값은 브라우저에 저장됩니다.<br>
+        <strong>차트 기준 선택에 따라 금액 또는 건수 비중과 비교합니다.</strong>
+      </div>
+      <div id="modal-list"></div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-sm" onclick="closeModal()" style="background:var(--sf2);color:var(--tx2);border:1px solid var(--border)">닫기</button>
+      <button class="btn btn-blue btn-sm" onclick="saveTargets()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════
+const SHEET_ID = '1TQpPtnBowiQKw_dQrol29Gi27PRf7xKzwvUkQaPHW30';
+const CSV_URL  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
+
+// 컬럼 인덱스 (0-based, CSV 파싱 기준)
+const COL = { date:3, major:7, minor:8, amount:10 };  // K열=index10
+
+// ══════════════════════════════════════════
+//  도메인 정의
+// ══════════════════════════════════════════
+const ALL_DOMAINS = [
+  '반도체','디스플레이','배터리(이차전지)','모빌리티','로봇',
+  '컴퓨터 및 주변장치','네트워크 장비','기타 신소재','기계장치','우주·항공·방산',
+  '해양','건축','스마트팜','신재생에너지','차세대에너지','탄소저감/관리','순환경제',
+  '디지털 헬스케어','의료기기','의약품','바이오테크',
+  'SaaS','E-commerce','물류','사이버보안','블록체인','에듀테크','핀테크','프롭테크',
+  '광고/마케팅','XR','애그테크','플랫폼','미디어/엔터','교육','패션/뷰티',
+  'F&B','게임','여행/레저','펫','리빙','푸드테크'
+];
+
+// 핵심 도메인 13개 (I열 중분류 값과 정확히 매칭)
+const KEY_DOMAINS = new Set([
+  '우주·항공·방산','반도체','플랫폼','신재생에너지','로봇','기계장치',
+  '물류','배터리(이차전지)','패션/뷰티','의료기기','모빌리티','탄소저감/관리','사이버보안'
+]);
+
+const KEY_LABEL_MAP = {
+  '우주·항공·방산':'우주항공','반도체':'반도체','플랫폼':'플랫폼',
+  '신재생에너지':'신재생에너지','로봇':'로봇','기계장치':'기계장치',
+  '물류':'물류','배터리(이차전지)':'배터리','패션/뷰티':'패션/뷰티',
+  '의료기기':'의료기기','모빌리티':'모빌리티','탄소저감/관리':'탄소저감','사이버보안':'사이버보안'
+};
+
+const PALETTE = [
+  '#3266ad','#16a34a','#ea580c','#8b5cf6','#0891b2',
+  '#be185d','#b45309','#4d7c0f','#7c3aed','#0f766e',
+  '#c2410c','#1d4ed8','#047857','#7e22ce','#9d174d',
+  '#92400e','#065f46','#1e40af','#6d28d9','#0e7490'
+];
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let rawData   = [];
+let periodMode = 'q';   // 'q' | 'c'
+let metricMode = 'a';   // 'a'(amount) | 'c'(count)
+let viewMode   = 'all'; // 'all' | 'key'
+let chart      = null;
+let targets    = loadTgt();
+
+function loadTgt() {
+  try { return JSON.parse(localStorage.getItem('inv-tgt-v2')) || {}; }
+  catch(e) { return {}; }
+}
+function saveTgtLS() { localStorage.setItem('inv-tgt-v2', JSON.stringify(targets)); }
+
+// ══════════════════════════════════════════
+//  FETCH
+// ══════════════════════════════════════════
+function fetchData() {
+  const btn = document.getElementById('sync-btn');
+  btn.disabled = true; btn.textContent = '⏳ 불러오는 중...';
+  setStat('spin','구글 시트에서 데이터를 불러오는 중...','');
+
+  Papa.parse(CSV_URL, {
+    download: true,
+    skipEmptyLines: true,
+    complete(res) {
+      const rows = res.data;
+      if (!rows || rows.length < 2) {
+        setStat('err','데이터 없음','공개 설정을 확인하세요');
+        reset(btn); return;
+      }
+      rawData = rows.slice(1).filter(r => {
+        const d = r[COL.date] && r[COL.date].trim();
+        return d && d.length >= 4;
+      });
+      populateYears();
+      renderAll();
+      const now = new Date().toLocaleTimeString('ko-KR');
+      setStat('ok',`${rawData.length}건 로드 완료`,`중분류 기준 · 투자금액 K열`);
+      document.getElementById('stime').textContent = '동기화: ' + now;
+      reset(btn);
+      toast('✅ ' + rawData.length + '건 데이터 동기화 완료!','tok');
+    },
+    error() {
+      setStat('err','연결 실패','구글 시트 공개 설정 또는 인터넷 연결 확인');
+      reset(btn);
+      toast('❌ 데이터 불러오기 실패','terr');
+    }
+  });
+}
+
+function reset(btn) { btn.disabled = false; btn.textContent = '🔄 데이터 새로고침'; }
+function setStat(type, txt, sub) {
+  const d = document.getElementById('sdot');
+  d.className = 'sdot' + (type==='ok'?' ok':type==='err'?' err':' spin');
+  document.getElementById('stxt').textContent = txt;
+  document.getElementById('ssub').textContent = sub;
+}
+
+function populateYears() {
+  const years = [...new Set(rawData.map(r => qInfo(r[COL.date])?.y).filter(Boolean))].sort((a,b)=>b-a);
+  const sel = document.getElementById('f-year');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="all">전체 연도</option>' +
+    years.map(y=>`<option value="${y}">${y}년</option>`).join('');
+  if (years.includes(+cur)) sel.value = cur;
+  else if (years.length) sel.value = String(years[0]);
+}
+
+// ══════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════
+function qInfo(str) {
+  if (!str) return null;
+  const d = new Date(str.trim());
+  if (isNaN(d)) return null;
+  return { y: d.getFullYear(), q: Math.ceil((d.getMonth()+1)/3) };
+}
+
+function parseAmt(str) {
+  if (!str) return 0;
+  return parseInt(String(str).replace(/[,\s]/g,'')) || 0;
+}
+
+function getFiltered() {
+  const yv = document.getElementById('f-year').value;
+  const qv = document.getElementById('f-q').value;
+  const y  = yv === 'all' ? null : +yv;
+  const q  = qv === 'all' ? null : +qv;
+
+  return rawData.filter(r => {
+    const info = qInfo(r[COL.date]);
+    if (!info) return false;
+    if (periodMode === 'q') {
+      if (y && info.y !== y) return false;
+      if (q && info.q !== q) return false;
+    } else {
+      if (y) {
+        if (info.y > y) return false;
+        if (info.y === y && q && info.q > q) return false;
+      }
+    }
+    return true;
+  });
+}
+
+function calcStats(data) {
+  const groups = {};
+  let totAmt = 0, totCnt = 0;
+  data.forEach(r => {
+    const dom = (r[COL.minor] || '미분류').trim();
+    const amt = parseAmt(r[COL.amount]);
+    if (!groups[dom]) groups[dom] = { cnt: 0, amt: 0 };
+    groups[dom].cnt++;
+    groups[dom].amt += amt;
+    totCnt++;
+    totAmt += amt;
+  });
+  // Sort: key domains first, then by amount desc
+  const sorted = Object.entries(groups).sort((a,b) => {
+    const ak = KEY_DOMAINS.has(a[0]) ? 1 : 0;
+    const bk = KEY_DOMAINS.has(b[0]) ? 1 : 0;
+    if (ak !== bk) return bk - ak;
+    return b[1].amt - a[1].amt;
+  });
+  return { sorted, totAmt, totCnt };
+}
+
+function pct(v, tot) { return tot ? Math.round(v/tot*1000)/10 : 0; }
+
+// ══════════════════════════════════════════
+//  CONTROLS
+// ══════════════════════════════════════════
+function setPeriod(m) {
+  periodMode = m;
+  document.getElementById('pm-q').className = 'sb' + (m==='q'?' on':'');
+  document.getElementById('pm-c').className = 'sb' + (m==='c'?' on':'');
+  renderAll();
+}
+function setMetric(m) {
+  metricMode = m;
+  document.getElementById('mt-a').className = 'sb' + (m==='a'?' on':'');
+  document.getElementById('mt-c').className = 'sb' + (m==='c'?' on':'');
+  renderAll();
+}
+function setView(v) {
+  viewMode = v;
+  document.getElementById('vw-all').className = 'sb' + (v==='all'?' on':'');
+  document.getElementById('vw-key').className = 'sb' + (v==='key'?' on':'');
+  renderAll();
+}
+
+// ══════════════════════════════════════════
+//  RENDER ALL
+// ══════════════════════════════════════════
+function renderAll() {
+  if (!rawData.length) return;
+  const data = getFiltered();
+  const { sorted, totAmt, totCnt } = calcStats(data);
+
+  // Apply view filter
+  const display = viewMode === 'key'
+    ? sorted.filter(([d]) => KEY_DOMAINS.has(d))
+    : sorted;
+
+  renderCards(data, sorted, totAmt, totCnt);
+  renderChart(display, totAmt, totCnt);
+  renderTable(display, totAmt, totCnt);
+
+  // Update titles
+  const yv = document.getElementById('f-year').value;
+  const qv = document.getElementById('f-q').value;
+  const periodStr = (yv==='all'?'전체':yv+'년') + (qv==='all'?'':' Q'+qv);
+  const modeStr = periodMode==='q'?'신규 투자':'누적';
+  document.getElementById('chart-title').textContent = `${periodStr} · ${modeStr} · 도메인별 ${metricMode==='a'?'금액':'건수'} 비중`;
+  document.getElementById('tbl-title').textContent = `${periodStr} · 도메인별 상세 현황 (${display.length}개)`;
+}
+
+// ── CARDS ──────────────────────────────────
+function renderCards(data, sorted, totAmt, totCnt) {
+  document.getElementById('c-cnt').textContent = totCnt.toLocaleString();
+  const yv = document.getElementById('f-year').value;
+  const qv = document.getElementById('f-q').value;
+  document.getElementById('c-cnt-s').textContent =
+    (yv==='all'?'전체':yv+'년') + (qv==='all'?'':' Q'+qv) + ' · ' + sorted.length + '개 도메인';
+
+  const amtOk = totAmt >= 1e8;
+  const amtVal = amtOk ? Math.round(totAmt/1e7)/10 : Math.round(totAmt/1e4);
+  document.getElementById('c-amt').textContent = amtVal.toLocaleString();
+  document.getElementById('c-amt-u').textContent = amtOk ? '억원' : '만원';
+  document.getElementById('c-amt-s').textContent = '투자금액 합계 (K열 기준)';
+
+  let ok=[], bad=[];
+  sorted.forEach(([dom, s]) => {
+    if (!KEY_DOMAINS.has(dom)) return;
+    const tgt = targets[dom];
+    if (!tgt) return;
+    const actual = metricMode==='a' ? pct(s.amt, totAmt) : pct(s.cnt, totCnt);
+    if (actual >= tgt) ok.push(KEY_LABEL_MAP[dom]||dom);
+    else bad.push(KEY_LABEL_MAP[dom]||dom);
+  });
+  document.getElementById('c-ok').textContent = ok.length;
+  document.getElementById('c-ok-s').textContent = ok.length ? ok.join(', ') : '목표 설정 필요';
+  document.getElementById('c-bad').textContent = bad.length;
+  document.getElementById('c-bad-s').textContent = bad.length ? bad.join(', ') : (ok.length ? '전 핵심 도메인 달성! 🎉' : '목표 미설정');
+}
+
+// ── CHART ──────────────────────────────────
+function renderChart(display, totAmt, totCnt) {
+  const wrap   = document.getElementById('chart-wrap');
+  const noChart = document.getElementById('no-chart');
+  if (!display.length) { wrap.style.display='none'; noChart.style.display='block'; return; }
+  wrap.style.display='block'; noChart.style.display='none';
+
+  const h = Math.max(display.length * 46 + 60, 200);
+  wrap.style.height = h + 'px';
+
+  const labels  = display.map(([d]) => (KEY_DOMAINS.has(d)?'★ ':'')+d);
+  const actuals = display.map(([d,s]) => metricMode==='a' ? pct(s.amt,totAmt) : pct(s.cnt,totCnt));
+  const tgtVals = display.map(([d]) => targets[d] || null);
+
+  const aColors = display.map(([d], i) => {
+    const tgt = targets[d];
+    if (!tgt) return '#94a3b8';
+    return actuals[i] >= tgt ? '#16a34a' : '#dc2626';
+  });
+
+  if (chart) { chart.destroy(); chart = null; }
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  const datasets = [{
+    label: metricMode==='a' ? '금액 비중(%)' : '건수 비중(%)',
+    data: actuals,
+    backgroundColor: aColors,
+    borderRadius: 3,
+    borderWidth: 0,
+  }];
+  if (tgtVals.some(v=>v!==null)) {
+    datasets.unshift({
+      label:'목표(%)',
+      data: tgtVals,
+      backgroundColor:'rgba(50,102,173,.13)',
+      borderColor:'#3266ad',
+      borderWidth:1.5,
+      borderRadius:3,
+    });
+  }
+
+  chart = new Chart(ctx, {
+    type:'bar',
+    data: { labels, datasets },
+    options: {
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend:{ display:false },
+        tooltip:{ callbacks:{ label: c => ` ${c.dataset.label}: ${c.raw !== null ? c.raw+'%' : '미설정'}` } }
+      },
+      scales: {
+        x:{ beginAtZero:true, ticks:{ callback:v=>v+'%', font:{size:10} }, grid:{color:'#f1f5f9'} },
+        y:{ ticks:{ font:{size:11} }, grid:{display:false} }
+      }
+    }
+  });
+}
+
+// ── TABLE ──────────────────────────────────
+function renderTable(display, totAmt, totCnt) {
+  const tbody = document.getElementById('tbl-body');
+  if (!display.length) {
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-state"><p>해당 기간 투자 데이터가 없습니다</p></td></tr>`;
+    return;
+  }
+
+  const rows = display.map(([dom, s], i) => {
+    const isKey    = KEY_DOMAINS.has(dom);
+    const cntPct   = pct(s.cnt, totCnt);
+    const amtPct   = pct(s.amt, totAmt);
+    const primary  = metricMode === 'a' ? amtPct : cntPct;
+    const tgt      = targets[dom];
+    const diff     = tgt ? primary - tgt : null;
+    const diffTxt  = diff===null ? '—' : (diff>=0?'+':'')+diff.toFixed(1)+'%p';
+    const diffCol  = diff===null ? 'var(--tx3)' : diff>=0 ? 'var(--ok)' : 'var(--bad)';
+
+    let badge = `<span class="badge bnone">목표없음</span>`;
+    if (diff !== null) {
+      if (diff >= 0)     badge = `<span class="badge bok">✓ 달성</span>`;
+      else if (diff>=-5) badge = `<span class="badge bwarn">△ 근접</span>`;
+      else               badge = `<span class="badge bbad">✗ 미달</span>`;
+    }
+
+    const color = PALETTE[i % PALETTE.length];
+    const progPct = tgt ? Math.min(Math.round(primary/tgt*100),130) : Math.min(Math.round(primary*2),100);
+    const progColor = diff===null?'#94a3b8':diff>=0?'#22c55e':'#ef4444';
+    const amtMan = Math.round(s.amt/10000).toLocaleString();
+    const keyBadge = isKey ? `<span class="badge bstar">★ 핵심</span>` : `<span style="font-size:10px;color:var(--tx3)">일반</span>`;
+
+    return `<tr class="${isKey?'key-row':''}">
+      <td>
+        <div style="display:flex;align-items:center;gap:7px">
+          <span style="width:9px;height:9px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>
+          <span style="font-weight:${isKey?'800':'600'}">${dom}</span>
+        </div>
+        <div class="pb2"><div class="pf" style="width:${Math.min(progPct,100)}%;background:${progColor}"></div></div>
+      </td>
+      <td style="text-align:left">${keyBadge}</td>
+      <td style="font-weight:700">${s.cnt.toLocaleString()}</td>
+      <td>
+        <span style="font-weight:800;color:var(--navy)">${cntPct.toFixed(1)}%</span>
+      </td>
+      <td style="font-weight:700">${amtMan}</td>
+      <td>
+        <span style="font-weight:800;color:var(--navy2)">${amtPct.toFixed(1)}%</span>
+      </td>
+      <td>
+        ${isKey
+          ? `<input type="number" class="tgt-in" value="${tgt||''}" placeholder="—" min="0" max="100" step="0.5"
+              onchange="onTgtChange('${dom.replace(/'/g,"\\'")}',this.value)">`
+          : `<span style="color:var(--tx3);font-size:12px">—</span>`
+        }
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+          ${badge}
+          ${diff!==null?`<span style="font-size:11px;font-weight:700;color:${diffCol}">${diffTxt}</span>`:''}
+        </div>
+      </td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = rows.join('');
+
+  // Summary row for key domains
+  if (viewMode === 'all') {
+    const keyTotal = display.filter(([d])=>KEY_DOMAINS.has(d));
+    if (keyTotal.length) {
+      const kCnt = keyTotal.reduce((s,[,v])=>s+v.cnt,0);
+      const kAmt = keyTotal.reduce((s,[,v])=>s+v.amt,0);
+      tbody.innerHTML += `<tr style="background:#fef9c3;font-weight:700">
+        <td colspan="2" style="font-size:12px;color:var(--warn)">★ 핵심 도메인 소계 (${keyTotal.length}개)</td>
+        <td>${kCnt.toLocaleString()}</td>
+        <td><span style="font-weight:800;color:var(--warn)">${pct(kCnt,totCnt).toFixed(1)}%</span></td>
+        <td>${Math.round(kAmt/10000).toLocaleString()}</td>
+        <td><span style="font-weight:800;color:var(--warn)">${pct(kAmt,totAmt).toFixed(1)}%</span></td>
+        <td colspan="2" style="color:var(--tx2);font-size:11px">핵심 도메인 합산</td>
+      </tr>`;
+    }
+  }
+}
+
+// ══════════════════════════════════════════
+//  TARGET INLINE EDIT
+// ══════════════════════════════════════════
+function onTgtChange(dom, val) {
+  targets[dom] = val === '' ? null : parseFloat(val);
+  saveTgtLS();
+  renderAll();
+}
+
+// ══════════════════════════════════════════
+//  TARGET MODAL
+// ══════════════════════════════════════════
+function openModal() {
+  const list = document.getElementById('modal-list');
+  list.innerHTML = [...KEY_DOMAINS].map(dom => {
+    const shortName = KEY_LABEL_MAP[dom] || dom;
+    return `<div class="trow key">
+      <div class="trow-name">★ ${shortName}<br><span style="font-size:11px;font-weight:400;color:var(--tx2)">${dom}</span></div>
+      <input type="number" value="${targets[dom]||''}" placeholder="미설정" min="0" max="100" step="0.5"
+        onchange="targets['${dom.replace(/'/g,"\\'")}'] = this.value===''?null:parseFloat(this.value)">
+      <span style="font-size:12px;color:var(--tx2)">%</span>
+    </div>`;
+  }).join('');
+  document.getElementById('tgt-modal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('tgt-modal').classList.remove('open'); }
+document.getElementById('tgt-modal').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+
+function saveTargets() {
+  document.querySelectorAll('#modal-list .trow input').forEach(inp => {
+    const dom = inp.closest('.trow').querySelector('.trow-name').textContent
+      .split('\n')[1]?.trim();
+    if (dom) targets[dom] = inp.value===''?null:parseFloat(inp.value);
+  });
+  saveTgtLS();
+  closeModal();
+  renderAll();
+  toast('✅ 목표 비중이 저장되었습니다.','tok');
+}
+
+// ══════════════════════════════════════════
+//  PRINT BRIEFING
+// ══════════════════════════════════════════
+function doPrint() {
+  if (!rawData.length) { toast('먼저 데이터를 새로고침 해주세요.','terr'); return; }
+  const data   = getFiltered();
+  const { sorted, totAmt, totCnt } = calcStats(data);
+  const today  = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
+  const yv     = document.getElementById('f-year').value;
+  const qv     = document.getElementById('f-q').value;
+  const period = (yv==='all'?'전체':yv+'년') + (qv==='all'?'':' Q'+qv);
+
+  const keyRows = sorted.filter(([d])=>KEY_DOMAINS.has(d));
+  const tableRows = keyRows.map(([dom,s]) => {
+    const cntP = pct(s.cnt,totCnt);
+    const amtP = pct(s.amt,totAmt);
+    const primary = metricMode==='a' ? amtP : cntP;
+    const tgt  = targets[dom];
+    const diff = tgt ? primary-tgt : null;
+    const diffT = diff===null?'—':(diff>=0?'+':'')+diff.toFixed(1)+'%p';
+    const status = diff===null?'목표없음':diff>=0?'달성':diff>=-5?'근접 미달':'미달성';
+    const sc = diff===null?'#888':diff>=0?'#15803d':diff>=-5?'#b45309':'#b91c1c';
+    return `<tr>
+      <td style="font-weight:700">${KEY_LABEL_MAP[dom]||dom}<br><small style="font-weight:400;color:#888">${dom}</small></td>
+      <td style="text-align:center">${s.cnt}건</td>
+      <td style="text-align:center;font-weight:700">${cntP.toFixed(1)}%</td>
+      <td style="text-align:center">${Math.round(s.amt/10000).toLocaleString()}만</td>
+      <td style="text-align:center;font-weight:700">${amtP.toFixed(1)}%</td>
+      <td style="text-align:center">${tgt?tgt+'%':'—'}</td>
+      <td style="text-align:center;font-weight:700;color:${sc}">${diffT}</td>
+      <td style="text-align:center;font-weight:700;color:${sc}">${status}</td>
+    </tr>`;
+  }).join('');
+
+  const okDoms  = keyRows.filter(([d,s])=>{ const t=targets[d]; if(!t)return false; const a=metricMode==='a'?pct(s.amt,totAmt):pct(s.cnt,totCnt); return a>=t; });
+  const badDoms = keyRows.filter(([d,s])=>{ const t=targets[d]; if(!t)return false; const a=metricMode==='a'?pct(s.amt,totAmt):pct(s.cnt,totCnt); return a<t; });
+
+  const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
+  <title>${period} 도메인 비중 브리핑</title>
+  <style>
+    body{font-family:-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;color:#0f172a;padding:32px 44px;font-size:13px}
+    h1{font-size:20px;font-weight:800;margin-bottom:3px}
+    .meta{font-size:12px;color:#64748b;margin-bottom:24px}
+    .sum{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+    .sc{border:1px solid #e2e8f0;border-radius:8px;padding:11px 14px}
+    .sl{font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;margin-bottom:3px}
+    .sv{font-size:22px;font-weight:800}
+    .ss{font-size:10px;color:#94a3b8;margin-top:2px}
+    h2{font-size:13px;font-weight:800;margin:20px 0 8px;padding-left:10px;border-left:4px solid #1b3a6b}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{background:#1b3a6b;color:#fff;padding:8px 10px;text-align:center;font-weight:700}
+    th:first-child{text-align:left}
+    td{padding:8px 10px;border-bottom:1px solid #f1f5f9;vertical-align:top}
+    tr:nth-child(even) td{background:#f8fafc}
+    @media print{@page{margin:18mm 16mm}}
+  </style></head><body>
+  <h1>직접투자 · 핵심 도메인 비중 브리핑</h1>
+  <div class="meta">${period} · ${periodMode==='q'?'분기 신규 투자':'누적'} · 작성일: ${today}<br>
+  총 투자 건수: ${totCnt.toLocaleString()}건 | 총 투자 금액: ${Math.round(totAmt/1e8*10)/10}억원 | 핵심 도메인: ${keyRows.length}개</div>
+  <div class="sum">
+    <div class="sc"><div class="sl">총 투자 건수</div><div class="sv">${totCnt.toLocaleString()}건</div><div class="ss">${sorted.length}개 도메인</div></div>
+    <div class="sc"><div class="sl">총 투자 금액</div><div class="sv">${Math.round(totAmt/1e8*10)/10}억원</div></div>
+    <div class="sc"><div class="sl">핵심 달성 도메인</div><div class="sv" style="color:#15803d">${okDoms.length}개</div><div class="ss">${okDoms.map(([d])=>KEY_LABEL_MAP[d]).join(', ')||'—'}</div></div>
+    <div class="sc"><div class="sl">핵심 미달 도메인</div><div class="sv" style="color:#b91c1c">${badDoms.length}개</div><div class="ss">${badDoms.map(([d])=>KEY_LABEL_MAP[d]).join(', ')||'—'}</div></div>
+  </div>
+  <h2>★ 핵심 도메인 현황 (13개)</h2>
+  <table><thead><tr>
+    <th>도메인</th><th>건수</th><th>건수 비중</th><th>금액</th><th>금액 비중</th><th>목표</th><th>차이</th><th>상태</th>
+  </tr></thead><tbody>${tableRows}</tbody></table>
+  <script>window.onload=()=>window.print();<\/script></body></html>`;
+
+  const w = window.open('','_blank');
+  if(w){ w.document.write(html); w.document.close(); }
+  else toast('팝업 차단 해제 후 다시 시도하세요.','terr');
+}
+
+// ══════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════
+let toastT;
+function toast(msg, cls='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast' + (cls?' '+cls:'');
+  void el.offsetWidth;
+  el.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(()=>el.classList.remove('show'), 3500);
+}
+
+// ══════════════════════════════════════════
+//  INIT — 자동 로드
+// ══════════════════════════════════════════
+document.getElementById('no-chart').style.display = 'block';
+document.getElementById('chart-wrap').style.display = 'none';
+</script>
+</body>
+</html>
