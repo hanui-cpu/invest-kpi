@@ -176,7 +176,6 @@ tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--bo
     <div>
       <div class="goal-label">2026 총 투자 한도</div>
       <div class="goal-val">250억원</div>
-      <div class="goal-sub">집행 현황은 하단 카드에서 확인</div>
     </div>
   </div>
 </div>
@@ -230,7 +229,7 @@ tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--bo
     <div><span class="cv" id="c-cnt">—</span><span class="cu">건</span></div>
     <div class="cs" id="c-cnt-s">—</div>
   </div>
-  <div class="card">
+  <div class="card" id="conc-card">
     <div class="cl">핵심 집중도 달성률</div>
     <div><span class="cv" id="c-conc-rate" style="color:var(--or)">—</span><span class="cu">%</span></div>
     <div class="cs" id="c-conc-s">실적% ÷ 80% × 100%</div>
@@ -314,7 +313,12 @@ tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--bo
 <div class="toast" id="toast"></div>
 
 <script>
-const TOTAL_BUDGET=25000000000,CONC_TARGET=80;
+const CONC_TARGET=80;
+const YEAR_BUDGETS={
+  2015:650000000,2016:2050000000,2017:2200000000,2018:2000000000,
+  2019:3000000000,2020:3000000000,2021:4000000000,2022:4000000000,
+  2023:6000000000,2024:8000000000,2025:12000000000,2026:25000000000
+};
 const SHEET_ID='1TQpPtnBowiQKw_dQrol29Gi27PRf7xKzwvUkQaPHW30';
 const CSV_URL=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
 const COL={date:3,major:7,minor:8,amount:10};
@@ -368,6 +372,17 @@ function getFiltered(){
     return true;
   });
 }
+// 카드용 필터: 항상 단년도 집계 (누적 모드 무관)
+function getCardFiltered(){
+  const yv=document.getElementById('f-year').value,qv=document.getElementById('f-q').value;
+  const y=yv==='all'?null:+yv,q=qv==='all'?null:+qv;
+  return rawData.filter(r=>{
+    const info=qi(r[COL.date]);if(!info)return false;
+    if(y&&info.y!==y)return false;  // 선택 연도만 (누적 없음)
+    if(q&&info.q!==q)return false;
+    return true;
+  });
+}
 function calcStats(data){
   const g={};let totAmt=0,totCnt=0;
   data.forEach(r=>{const dom=(r[COL.minor]||'미분류').trim(),amt=parseAmt(r[COL.amount]);
@@ -384,34 +399,65 @@ function setView(v){viewMode=v;document.getElementById('vw-all').className='sb'+
 
 function renderAll(){
   if(!rawData.length)return;
+  const yv=document.getElementById('f-year').value,qv=document.getElementById('f-q').value;
+  // 카드: 단년도 집계 / 차트·테이블: 선택 모드(누적·분기신규) 적용
+  const cardData=getCardFiltered();
+  const {sorted:cSorted,totAmt:cAmt,totCnt:cCnt}=calcStats(cardData);
   const data=getFiltered(),{sorted,totAmt,totCnt}=calcStats(data);
   const display=viewMode==='key'?sorted.filter(([d])=>KEY_DOMAINS.has(d)):sorted;
-  renderCards(sorted,totAmt,totCnt);renderChart(display,totAmt,totCnt);renderTable(display,totAmt,totCnt);
-  const yv=document.getElementById('f-year').value,qv=document.getElementById('f-q').value;
+  renderCards(cSorted,cAmt,cCnt,yv);
+  renderChart(display,totAmt,totCnt);
+  renderTable(display,totAmt,totCnt);
   const pStr=(yv==='all'?'전체':yv+'년')+(qv==='all'?'':' Q'+qv),mStr=periodMode==='c'?'누적':'분기 신규';
   document.getElementById('chart-title').textContent=`${pStr} · ${mStr} · 달성률`;
   document.getElementById('tbl-title').textContent=`${pStr} · 도메인별 상세 현황 (${display.length}개)`;
 }
 
-function renderCards(sorted,totAmt,totCnt){
+function renderCards(sorted,totAmt,totCnt,yv){
+  // ① 투자금액 — 단년도 집계
   const amtBil=Math.round(totAmt/1e7)/10;
   document.getElementById('c-amt').textContent=amtBil.toLocaleString();
-  const bPct=Math.min(Math.round(totAmt/TOTAL_BUDGET*1000)/10,100);
-  document.getElementById('budget-bar').style.width=bPct+'%';
-  document.getElementById('budget-pct-l').textContent=bPct+'%';
+  // ② 연도별 예산 배정액
+  const budget=yv&&yv!=='all'?YEAR_BUDGETS[+yv]:null;
+  if(budget){
+    const bPct=Math.min(Math.round(totAmt/budget*1000)/10,200);
+    document.getElementById('budget-bar').style.width=Math.min(bPct,100)+'%';
+    document.getElementById('budget-bar').style.background=bPct>=100?'var(--bad)':bPct>=80?'var(--or)':'var(--ok)';
+    document.getElementById('budget-pct-l').textContent=bPct+'%';
+    const budgetBil=Math.round(budget/1e7)/10;
+    document.querySelector('.card.accent .cs').textContent=`한도 ${budgetBil}억원 기준`;
+    const budgetGaugeLbl=document.querySelector('#budget-pct-l').closest('.gauge-lbl');
+    if(budgetGaugeLbl)budgetGaugeLbl.lastElementChild.textContent=budgetBil+'억';
+  } else {
+    document.getElementById('budget-bar').style.width='0%';
+    document.getElementById('budget-pct-l').textContent='—';
+    document.querySelector('.card.accent .cs').textContent='연도를 선택하면 예산 한도가 표시됩니다';
+  }
+  // ③ 투자건수 — 단년도 집계
   document.getElementById('c-cnt').textContent=totCnt.toLocaleString();
   document.getElementById('c-cnt-s').textContent=sorted.length+'개 도메인';
+  // ④ 핵심 집중도 달성률 — 2026년에만 표시
+  const concCard=document.getElementById('conc-card');
+  const is2026=yv==='2026';
+  if(concCard)concCard.style.opacity=is2026?'1':'0.35';
   const keyAmt=sorted.filter(([d])=>KEY_DOMAINS.has(d)).reduce((s,[,v])=>s+v.amt,0);
   const keyCnt=sorted.filter(([d])=>KEY_DOMAINS.has(d)).reduce((s,[,v])=>s+v.cnt,0);
-  const concActual=metricMode==='a'?pct(keyAmt,totAmt):pct(keyCnt,totCnt);
-  const concRate=achRate(concActual,CONC_TARGET);
   const concEl=document.getElementById('c-conc-rate');
-  concEl.textContent=concRate!==null?concRate.toFixed(1):'—';
-  concEl.style.color=!concRate?'var(--black)':concRate>=100?'var(--ok)':concRate>=80?'var(--warn)':'var(--bad)';
-  document.getElementById('conc-bar').style.width=Math.min(concRate||0,100)+'%';
-  document.getElementById('conc-bar').style.background=!concRate?'#ccc':concRate>=100?'var(--ok)':concRate>=80?'var(--or)':'var(--bad)';
-  document.getElementById('conc-actual-l').textContent='실적 '+concActual.toFixed(1)+'%';
-  document.getElementById('c-conc-s').textContent=concActual.toFixed(1)+'% ÷ 80% × 100 = '+(concRate?.toFixed(1)||'—')+'%';
+  if(!is2026){
+    concEl.textContent='—';concEl.style.color='var(--gray)';
+    document.getElementById('conc-bar').style.width='0%';
+    document.getElementById('conc-actual-l').textContent='2026년 전용 지표';
+    document.getElementById('c-conc-s').textContent='2026년 선택 시 표시됩니다';
+  } else {
+    const concActual=metricMode==='a'?pct(keyAmt,totAmt):pct(keyCnt,totCnt);
+    const concRate=achRate(concActual,CONC_TARGET);
+    concEl.textContent=concRate!==null?concRate.toFixed(1):'—';
+    concEl.style.color=!concRate?'var(--black)':concRate>=100?'var(--ok)':concRate>=80?'var(--warn)':'var(--bad)';
+    document.getElementById('conc-bar').style.width=Math.min(concRate||0,100)+'%';
+    document.getElementById('conc-bar').style.background=!concRate?'#ccc':concRate>=100?'var(--ok)':concRate>=80?'var(--or)':'var(--bad)';
+    document.getElementById('conc-actual-l').textContent='실적 '+concActual.toFixed(1)+'%';
+    document.getElementById('c-conc-s').textContent=concActual.toFixed(1)+'% ÷ 80% × 100 = '+(concRate?.toFixed(1)||'—')+'%';
+  }
   let ok=[],bad=[];
   sorted.forEach(([dom,s])=>{if(!KEY_DOMAINS.has(dom)||!targets[dom])return;
     const actual=metricMode==='a'?pct(s.amt,totAmt):pct(s.cnt,totCnt);
