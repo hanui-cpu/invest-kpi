@@ -145,7 +145,7 @@ tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--bo
     <span class="hd-title">직접투자 · 집중 도메인 비중 모니터링</span>
   </div>
   <div class="hd-r">
-    <button class="btn btn-sync" id="sync-btn" onclick="fetchData()">데이터 새로고침</button>
+    <button class="btn btn-sync" id="sync-btn" onclick="fetchData()" style="display:none">데이터 새로고침</button>
     <button class="btn btn-ghost" onclick="doPrint()">브리핑 출력</button>
   </div>
 </div>
@@ -213,7 +213,7 @@ tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--bo
   </div>
 </div>
 
-<div class="cards">
+<div class="cards" style="grid-template-columns:repeat(3,1fr)">
   <div class="card accent">
     <div class="cl">예산 집행 현황</div>
     <div><span class="cv" id="c-amt">—</span><span class="cu">억원</span></div>
@@ -236,14 +236,6 @@ tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--bo
       <div class="gauge-bg"><div class="gauge-fill" id="conc-bar" style="background:var(--or);width:0%"></div></div>
       <div class="gauge-lbl"><span id="conc-actual-l">실적 —%</span><span>목표 80%</span></div>
     </div>
-  </div>
-  <div class="card">
-    <div class="cl">핵심 도메인 달성 현황</div>
-    <div style="display:flex;align-items:baseline;gap:14px;margin-top:2px">
-      <div><span class="cv" id="c-ok" style="color:var(--ok)">—</span><span class="cu" style="color:var(--ok)">달성</span></div>
-      <div><span class="cv" id="c-bad" style="color:var(--bad)">—</span><span class="cu" style="color:var(--bad)">미달</span></div>
-    </div>
-    <div class="cs" id="c-ok-s">목표 설정 도메인 기준</div>
   </div>
 </div>
 
@@ -608,6 +600,15 @@ function doPrint(){
 }
 let toastT;
 function toast(msg,cls=''){const el=document.getElementById('toast');el.textContent=msg;el.className='toast'+(cls?' '+cls:'');void el.offsetWidth;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),3500);}
+
+// 관리자 키 확인 — URL에 ?admin=dcamp2026 이 있을 때만 버튼 표시
+const ADMIN_KEY = 'dcamp2026';
+const urlParams = new URLSearchParams(window.location.search);
+if(urlParams.get('admin') === ADMIN_KEY){
+  document.getElementById('sync-btn').style.display = 'inline-flex';
+}
+// 페이지 열리면 자동으로 데이터 로드
+window.addEventListener('load', fetchData);
 </script>
 </body>
 </html>
