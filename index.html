@@ -75,10 +75,10 @@ body{font-family:'DM Sans',-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sa
 .cv{font-size:32px;font-weight:600;color:var(--black);line-height:1;letter-spacing:-1px}
 .cu{font-size:14px;font-weight:400;color:var(--gray);margin-left:4px}
 .cs{font-size:11px;color:var(--gray2);margin-top:6px}
-.gauge-wrap{margin-top:12px}
-.gauge-bg{height:4px;background:var(--sf2);border-radius:3px;overflow:hidden}
+.gauge-wrap{margin-top:12px;position:relative}
+.gauge-bg{height:5px;background:var(--sf2);border-radius:3px;overflow:visible;position:relative}
 .gauge-fill{height:100%;border-radius:3px;transition:width .6s cubic-bezier(.4,0,.2,1)}
-.gauge-lbl{display:flex;justify-content:space-between;font-size:10px;color:var(--gray2);margin-top:4px;font-family:'DM Mono',monospace}
+.gauge-lbl{display:flex;justify-content:space-between;font-size:10px;color:var(--gray2);margin-top:6px;font-family:'DM Mono',monospace;position:relative}
 .panel{background:var(--sf);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;margin-bottom:16px}
 .ph{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
 .ph-t{font-size:13px;font-weight:600}
@@ -229,12 +229,23 @@ tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--bo
     <div class="cs" id="c-cnt-s">—</div>
   </div>
   <div class="card" id="conc-card">
-    <div class="cl">핵심 집중도 달성률</div>
-    <div><span class="cv" id="c-conc-rate" style="color:var(--or)">—</span><span class="cu">%</span></div>
-    <div class="cs" id="c-conc-s">실적% ÷ 80% × 100%</div>
-    <div class="gauge-wrap">
-      <div class="gauge-bg"><div class="gauge-fill" id="conc-bar" style="background:var(--or);width:0%"></div></div>
-      <div class="gauge-lbl"><span id="conc-actual-l">실적 —%</span><span>목표 80%</span></div>
+    <div class="cl">핵심 집중도 실적</div>
+    <div style="display:flex;align-items:baseline;gap:6px">
+      <span class="cv" id="c-conc-rate" style="color:var(--or)">—</span><span class="cu">%</span>
+      <span style="font-size:11px;color:var(--gray);margin-left:4px">/ 목표 80%</span>
+    </div>
+    <div class="cs" id="c-conc-s">달성률 —%</div>
+    <div class="gauge-wrap" style="position:relative">
+      <div class="gauge-bg">
+        <div class="gauge-fill" id="conc-bar" style="background:var(--or);width:0%"></div>
+      </div>
+      <!-- 목표 80% 기준선 -->
+      <div id="conc-target-line" style="position:absolute;top:0;left:80%;width:2px;height:100%;background:var(--black2);border-radius:1px"></div>
+      <div class="gauge-lbl">
+        <span id="conc-actual-l">실적 —%</span>
+        <span style="position:absolute;left:80%;transform:translateX(-50%);color:var(--black2);font-weight:600">목표 80%</span>
+        <span></span>
+      </div>
     </div>
   </div>
 </div>
@@ -266,6 +277,7 @@ tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--bo
         <th>도메인 (중분류)</th><th>구분</th>
         <th>건수</th><th>건수 비중</th>
         <th>금액 (만원)</th><th>금액 비중</th>
+        <th>집중도 달성률</th>
       </tr></thead>
       <tbody id="tbl-body"></tbody>
     </table>
@@ -443,12 +455,16 @@ function renderCards(sorted,totAmt,totCnt,yv){
   } else {
     const concActual=metricMode==='a'?pct(keyAmt,totAmt):pct(keyCnt,totCnt);
     const concRate=achRate(concActual,CONC_TARGET);
-    concEl.textContent=concRate!==null?concRate.toFixed(1):'—';
-    concEl.style.color=!concRate?'var(--black)':concRate>=100?'var(--ok)':concRate>=80?'var(--warn)':'var(--bad)';
-    document.getElementById('conc-bar').style.width=Math.min(concRate||0,100)+'%';
-    document.getElementById('conc-bar').style.background=!concRate?'#ccc':concRate>=100?'var(--ok)':concRate>=80?'var(--or)':'var(--bad)';
+    const rateColor=!concRate?'var(--black)':concRate>=100?'var(--ok)':concRate>=80?'var(--warn)':'var(--bad)';
+    // 카드 큰 숫자: 실적%
+    concEl.textContent=concActual.toFixed(1);
+    concEl.style.color=rateColor;
+    // 게이지: 실적% 기준 (80% 스케일에서 표시, 100% = 80%이 꽉 참)
+    const barW=Math.min(concActual/100*100,100); // 0~100% 그대로 표시
+    document.getElementById('conc-bar').style.width=barW+'%';
+    document.getElementById('conc-bar').style.background=concActual>=CONC_TARGET?'var(--ok)':concActual>=CONC_TARGET*0.8?'var(--or)':'var(--bad)';
     document.getElementById('conc-actual-l').textContent='실적 '+concActual.toFixed(1)+'%';
-    document.getElementById('c-conc-s').textContent=concActual.toFixed(1)+'% ÷ 80% × 100 = '+(concRate?.toFixed(1)||'—')+'%';
+    document.getElementById('c-conc-s').textContent='달성률 '+(concRate?.toFixed(1)||'—')+'%  ('+concActual.toFixed(1)+'÷80×100)';
   }
   let ok=[],bad=[];
   sorted.forEach(([dom,s])=>{if(!KEY_DOMAINS.has(dom)||!targets[dom])return;
@@ -502,7 +518,7 @@ function renderChart(display,totAmt,totCnt,yv){
 function renderTable(display,totAmt,totCnt,yv){
   const tbody=document.getElementById('tbl-body');
   const is2026=yv==='2026';
-  if(!display.length){tbody.innerHTML='<tr><td colspan="6" class="empty-state">해당 기간 데이터 없음</td></tr>';return;}
+  if(!display.length){tbody.innerHTML='<tr><td colspan="7" class="empty-state">해당 기간 데이터 없음</td></tr>';return;}
   tbody.innerHTML=display.map(([dom,s],i)=>{
     const isKey=KEY_DOMAINS.has(dom);
     const cntP=pct(s.cnt,totCnt),amtP=pct(s.amt,totAmt);
@@ -515,6 +531,7 @@ function renderTable(display,totAmt,totCnt,yv){
       <td><span class="mono" style="font-weight:700">${cntP.toFixed(1)}%</span></td>
       <td class="mono">${Math.round(s.amt/10000).toLocaleString()}</td>
       <td><span class="mono" style="font-weight:700">${amtP.toFixed(1)}%</span></td>
+      <td>—</td>
     </tr>`;
   }).join('');
 
@@ -524,19 +541,21 @@ function renderTable(display,totAmt,totCnt,yv){
     const kCnt=keyRows.reduce((s,[,v])=>s+v.cnt,0),kAmt=keyRows.reduce((s,[,v])=>s+v.amt,0);
     const kCntP=pct(kCnt,totCnt),kAmtP=pct(kAmt,totAmt);
     const concA=metricMode==='a'?kAmtP:kCntP;
-    const concR=achRate(concA,CONC_TARGET);
+    const concR=is2026?achRate(concA,CONC_TARGET):null;
     const crc=concR===null?'var(--gray)':concR>=100?'var(--ok)':concR>=80?'var(--warn)':'var(--bad)';
-    const concCell=is2026
-      ? `<span class="mono" style="font-weight:700;color:${crc}">${concR!==null?concR.toFixed(1)+'%':'—'}</span>
-         <div style="font-size:10px;color:var(--gray);font-family:'DM Mono',monospace">${concA.toFixed(1)} ÷ 80 × 100</div>`
+    const rateCell=is2026
+      ? `<div><span class="mono" style="font-size:14px;font-weight:700;color:${crc}">${concR!==null?concR.toFixed(1)+'%':'—'}</span></div>
+         <div style="font-size:10px;color:var(--gray);font-family:'DM Mono',monospace;margin-top:2px">${concA.toFixed(1)} ÷ 80 × 100</div>`
       : `<span style="font-size:11px;color:var(--gray)">2026년 전용</span>`;
     tbody.innerHTML+=`<tr class="sum-row">
-      <td colspan="2">★ 핵심 도메인 소계 (${keyRows.length}개) &nbsp;<span style="font-size:10px;color:var(--gray);font-weight:400">목표: 핵심 13개 합산 80%</span></td>
+      <td colspan="2">★ 핵심 도메인 소계 (${keyRows.length}개)
+        <span style="font-size:10px;color:var(--gray);font-weight:400;margin-left:6px">목표: 합산 80%</span>
+      </td>
       <td class="mono">${kCnt.toLocaleString()}</td>
       <td><span class="mono" style="color:var(--or);font-weight:700">${kCntP.toFixed(1)}%</span></td>
       <td class="mono">${Math.round(kAmt/10000).toLocaleString()}</td>
-      <td><span class="mono" style="color:var(--or);font-weight:700">${kAmtP.toFixed(1)}%</span>
-          &nbsp;${concCell}</td>
+      <td><span class="mono" style="color:var(--or);font-weight:700">${kAmtP.toFixed(1)}%</span></td>
+      <td>${rateCell}</td>
     </tr>`;
   }
 }
