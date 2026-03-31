@@ -146,7 +146,6 @@ tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--bo
   </div>
   <div class="hd-r">
     <button class="btn btn-sync" id="sync-btn" onclick="fetchData()">데이터 새로고침</button>
-    <button class="btn btn-ghost" onclick="openModal()">목표 비중 설정</button>
     <button class="btn btn-ghost" onclick="doPrint()">브리핑 출력</button>
   </div>
 </div>
@@ -273,7 +272,7 @@ tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--bo
 <div class="panel">
   <div class="ph">
     <span class="ph-t" id="tbl-title">도메인별 상세 현황</span>
-    <span style="font-size:11px;color:var(--gray)">달성률 = 실적 비중 ÷ 목표 비중 × 100% &nbsp;|&nbsp; ★ 핵심 도메인</span>
+    <span style="font-size:11px;color:var(--gray)">핵심 도메인 13개 합산 80% 목표 · 집중도 달성률은 2026년부터 표시 · ★ 핵심 도메인</span>
   </div>
   <div class="tw">
     <table>
@@ -281,7 +280,6 @@ tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--bo
         <th>도메인 (중분류)</th><th>구분</th>
         <th>건수</th><th>건수 비중</th>
         <th>금액 (만원)</th><th>금액 비중</th>
-        <th>목표 비중</th><th>달성률</th><th>상태</th>
       </tr></thead>
       <tbody id="tbl-body"></tbody>
     </table>
@@ -367,19 +365,20 @@ function getFiltered(){
   const y=yv==='all'?null:+yv,q=qv==='all'?null:+qv;
   return rawData.filter(r=>{
     const info=qi(r[COL.date]);if(!info)return false;
-    if(periodMode==='q'){if(y&&info.y!==y)return false;if(q&&info.q!==q)return false;}
-    else{if(y){if(info.y>y)return false;if(info.y===y&&q&&info.q>q)return false;}}
+    // 항상 선택 연도 내에서만 집계 (연도 간 누적 없음)
+    if(y&&info.y!==y)return false;
+    if(periodMode==='q'){if(q&&info.q!==q)return false;}
+    else{if(q&&info.q>q)return false;} // 누적 = 연도 내 해당 분기까지
     return true;
   });
 }
-// 카드용 필터: 항상 단년도 집계 (누적 모드 무관)
+// 카드용 필터: 분기 선택 무관, 연도 전체
 function getCardFiltered(){
-  const yv=document.getElementById('f-year').value,qv=document.getElementById('f-q').value;
-  const y=yv==='all'?null:+yv,q=qv==='all'?null:+qv;
+  const yv=document.getElementById('f-year').value;
+  const y=yv==='all'?null:+yv;
   return rawData.filter(r=>{
     const info=qi(r[COL.date]);if(!info)return false;
-    if(y&&info.y!==y)return false;  // 선택 연도만 (누적 없음)
-    if(q&&info.q!==q)return false;
+    if(y&&info.y!==y)return false;
     return true;
   });
 }
@@ -407,7 +406,7 @@ function renderAll(){
   const display=viewMode==='key'?sorted.filter(([d])=>KEY_DOMAINS.has(d)):sorted;
   renderCards(cSorted,cAmt,cCnt,yv);
   renderChart(display,totAmt,totCnt);
-  renderTable(display,totAmt,totCnt);
+  renderTable(display,totAmt,totCnt,yv);
   const pStr=(yv==='all'?'전체':yv+'년')+(qv==='all'?'':' Q'+qv),mStr=periodMode==='c'?'누적':'분기 신규';
   document.getElementById('chart-title').textContent=`${pStr} · ${mStr} · 달성률`;
   document.getElementById('tbl-title').textContent=`${pStr} · 도메인별 상세 현황 (${display.length}개)`;
@@ -486,18 +485,14 @@ function renderChart(display,totAmt,totCnt){
       scales:{x:{beginAtZero:true,ticks:{callback:v=>v+'%',font:{size:10},color:'#888'},grid:{color:'#ECEAE3'}},y:{ticks:{font:{size:11},color:'#444'},grid:{display:false}}}}});
 }
 
-function renderTable(display,totAmt,totCnt){
+function renderTable(display,totAmt,totCnt,yv){
   const tbody=document.getElementById('tbl-body');
-  if(!display.length){tbody.innerHTML='<tr><td colspan="9" class="empty-state">해당 기간 데이터 없음</td></tr>';return;}
+  const is2026=yv==='2026';
+  if(!display.length){tbody.innerHTML='<tr><td colspan="6" class="empty-state">해당 기간 데이터 없음</td></tr>';return;}
   tbody.innerHTML=display.map(([dom,s],i)=>{
     const isKey=KEY_DOMAINS.has(dom);
     const cntP=pct(s.cnt,totCnt),amtP=pct(s.amt,totAmt);
-    const actual=metricMode==='a'?amtP:cntP,tgt=targets[dom],rate=achRate(actual,tgt);
-    let badge='<span class="badge bnone">목표없음</span>';
-    if(rate!==null){if(rate>=100)badge='<span class="badge bok">✓ 달성</span>';else if(rate>=80)badge='<span class="badge bwarn">△ 근접</span>';else badge='<span class="badge bbad">✗ 미달</span>';}
-    const color=PALETTE[i%PALETTE.length],barW=rate!==null?Math.min(rate,100):0;
-    const barC=rate===null?'#ccc':rate>=100?'var(--ok)':rate>=80?'var(--or)':'var(--bad)';
-    const rateColor=rate===null?'var(--gray)':rate>=100?'var(--ok)':rate>=80?'var(--warn)':'var(--bad)';
+    const color=PALETTE[i%PALETTE.length];
     const keyBadge=isKey?'<span class="badge bstar">★ 핵심</span>':'<span style="font-size:10px;color:var(--gray2)">일반</span>';
     return `<tr class="${isKey?'key-row':''}">
       <td><div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span><span style="font-weight:${isKey?700:500}">${dom}</span></div></td>
@@ -506,22 +501,29 @@ function renderTable(display,totAmt,totCnt){
       <td><span class="mono" style="font-weight:700">${cntP.toFixed(1)}%</span></td>
       <td class="mono">${Math.round(s.amt/10000).toLocaleString()}</td>
       <td><span class="mono" style="font-weight:700">${amtP.toFixed(1)}%</span></td>
-      <td>${isKey?`<input type="number" class="tgt-in" value="${tgt||''}" placeholder="—" min="0" max="100" step="0.5" onchange="onTgtChange('${dom.replace(/'/g,"\\'")}',this.value)">`:'<span style="color:var(--gray2)">—</span>'}</td>
-      <td><div class="ach-cell"><span class="ach-num" style="color:${rateColor}">${rate!==null?rate.toFixed(1)+'%':'—'}</span><div class="ach-bar"><div class="ach-fill" style="width:${barW}%;background:${barC}"></div></div>${tgt?`<span class="ach-formula">${actual.toFixed(1)} ÷ ${tgt} × 100</span>`:''}</div></td>
-      <td>${badge}</td></tr>`;
+    </tr>`;
   }).join('');
+
+  // 핵심 도메인 소계 행
   const keyRows=display.filter(([d])=>KEY_DOMAINS.has(d));
   if(keyRows.length&&viewMode==='all'){
     const kCnt=keyRows.reduce((s,[,v])=>s+v.cnt,0),kAmt=keyRows.reduce((s,[,v])=>s+v.amt,0);
     const kCntP=pct(kCnt,totCnt),kAmtP=pct(kAmt,totAmt);
-    const concA=metricMode==='a'?kAmtP:kCntP,concR=achRate(concA,CONC_TARGET);
+    const concA=metricMode==='a'?kAmtP:kCntP;
+    const concR=achRate(concA,CONC_TARGET);
     const crc=concR===null?'var(--gray)':concR>=100?'var(--ok)':concR>=80?'var(--warn)':'var(--bad)';
-    tbody.innerHTML+=`<tr class="sum-row"><td colspan="2">★ 핵심 도메인 소계 (${keyRows.length}개)</td>
-      <td class="mono">${kCnt.toLocaleString()}</td><td><span class="mono" style="color:var(--or);font-weight:700">${kCntP.toFixed(1)}%</span></td>
-      <td class="mono">${Math.round(kAmt/10000).toLocaleString()}</td><td><span class="mono" style="color:var(--or);font-weight:700">${kAmtP.toFixed(1)}%</span></td>
-      <td style="font-size:11px;color:var(--gray)">목표 ${CONC_TARGET}%</td>
-      <td><span class="mono" style="font-weight:700;color:${crc}">${concR!==null?concR.toFixed(1)+'%':'—'}</span><div style="font-size:10px;color:var(--gray);font-family:'DM Mono',monospace">${concA.toFixed(1)} ÷ ${CONC_TARGET} × 100</div></td>
-      <td>${concR!==null?(concR>=100?'<span class="badge bok">✓ 달성</span>':concR>=80?'<span class="badge bwarn">△ 근접</span>':'<span class="badge bbad">✗ 미달</span>'):'—'}</td></tr>`;
+    const concCell=is2026
+      ? `<span class="mono" style="font-weight:700;color:${crc}">${concR!==null?concR.toFixed(1)+'%':'—'}</span>
+         <div style="font-size:10px;color:var(--gray);font-family:'DM Mono',monospace">${concA.toFixed(1)} ÷ 80 × 100</div>`
+      : `<span style="font-size:11px;color:var(--gray)">2026년 전용</span>`;
+    tbody.innerHTML+=`<tr class="sum-row">
+      <td colspan="2">★ 핵심 도메인 소계 (${keyRows.length}개) &nbsp;<span style="font-size:10px;color:var(--gray);font-weight:400">목표: 핵심 13개 합산 80%</span></td>
+      <td class="mono">${kCnt.toLocaleString()}</td>
+      <td><span class="mono" style="color:var(--or);font-weight:700">${kCntP.toFixed(1)}%</span></td>
+      <td class="mono">${Math.round(kAmt/10000).toLocaleString()}</td>
+      <td><span class="mono" style="color:var(--or);font-weight:700">${kAmtP.toFixed(1)}%</span>
+          &nbsp;${concCell}</td>
+    </tr>`;
   }
 }
 
@@ -551,29 +553,56 @@ function saveTargets(){
 }
 function doPrint(){
   if(!rawData.length){toast('먼저 데이터를 새로고침 해주세요','terr');return;}
-  const data=getFiltered(),{sorted,totAmt,totCnt}=calcStats(data);
-  const today=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
   const yv=document.getElementById('f-year').value,qv=document.getElementById('f-q').value;
+  const data=getFiltered(),{sorted,totAmt,totCnt}=calcStats(data);
+  const cardData=getCardFiltered(),{totAmt:cAmt}=calcStats(cardData);
+  const today=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
   const period=(yv==='all'?'전체':yv+'년')+(qv==='all'?'':' Q'+qv);
-  const amtBil=Math.round(totAmt/1e7)/10,bPct=Math.round(totAmt/TOTAL_BUDGET*1000)/10;
+  const amtBil=Math.round(cAmt/1e7)/10;
+  const budget=yv&&yv!=='all'?YEAR_BUDGETS[+yv]:null;
+  const bPct=budget?Math.round(cAmt/budget*1000)/10:null;
+  const budgetBil=budget?Math.round(budget/1e7)/10:null;
+  const is2026=yv==='2026';
   const keyRows=sorted.filter(([d])=>KEY_DOMAINS.has(d));
   const kAmt=keyRows.reduce((s,[,v])=>s+v.amt,0),kCnt=keyRows.reduce((s,[,v])=>s+v.cnt,0);
-  const concA=metricMode==='a'?pct(kAmt,totAmt):pct(kCnt,totCnt),concR=achRate(concA,CONC_TARGET);
+  const concA=metricMode==='a'?pct(kAmt,totAmt):pct(kCnt,totCnt);
+  const concR=is2026?achRate(concA,CONC_TARGET):null;
   const crc=concR===null?'#888':concR>=100?'#1A7A4A':concR>=80?'#A05A00':'#C0281C';
   const tableRows=keyRows.map(([dom,s])=>{
-    const cntP=pct(s.cnt,totCnt),amtP=pct(s.amt,totAmt),actual=metricMode==='a'?amtP:cntP;
-    const tgt=targets[dom],rate=achRate(actual,tgt);
-    const status=rate===null?'목표없음':rate>=100?'달성':rate>=80?'근접 미달':'미달성';
-    const sc=rate===null?'#888':rate>=100?'#1A7A4A':rate>=80?'#A05A00':'#C0281C';
-    return `<tr><td style="font-weight:700">${KEY_SHORT[dom]||dom}</td><td style="text-align:center;font-family:monospace">${s.cnt}</td><td style="text-align:center;font-weight:700;font-family:monospace">${cntP.toFixed(1)}%</td><td style="text-align:center;font-family:monospace">${Math.round(s.amt/10000).toLocaleString()}</td><td style="text-align:center;font-weight:700;font-family:monospace">${amtP.toFixed(1)}%</td><td style="text-align:center">${tgt?tgt+'%':'—'}</td><td style="text-align:center;font-family:monospace;font-size:11px">${tgt?`${actual.toFixed(1)}÷${tgt}×100=${rate?.toFixed(1)}%`:'—'}</td><td style="text-align:center;font-weight:700;color:${sc}">${status}</td></tr>`;
+    const cntP=pct(s.cnt,totCnt),amtP=pct(s.amt,totAmt);
+    return `<tr><td style="font-weight:700">${KEY_SHORT[dom]||dom}</td>
+      <td style="text-align:center;font-family:monospace">${s.cnt}</td>
+      <td style="text-align:center;font-weight:700;font-family:monospace">${cntP.toFixed(1)}%</td>
+      <td style="text-align:center;font-family:monospace">${Math.round(s.amt/10000).toLocaleString()}</td>
+      <td style="text-align:center;font-weight:700;font-family:monospace">${amtP.toFixed(1)}%</td></tr>`;
   }).join('');
-  const html=`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${period} 도메인 브리핑 · d.camp</title><style>body{font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;color:#111;padding:32px 44px;font-size:13px;background:#F2F1EC}h1{font-size:22px;font-weight:700;margin-bottom:2px;letter-spacing:-.5px}.logo{color:#FF5831;font-size:14px;font-weight:600;margin-bottom:6px}.meta{font-size:12px;color:#666;margin-bottom:20px}.formula{background:#fff;border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:18px;border-left:4px solid #FF5831}.kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}.kc{background:#fff;border-radius:10px;padding:12px 16px}.kl{font-size:10px;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:4px}.kv{font-size:22px;font-weight:700;letter-spacing:-.5px}.ks{font-size:10px;color:#aaa;margin-top:3px}h2{font-size:13px;font-weight:700;margin:18px 0 8px}table{width:100%;border-collapse:collapse;font-size:12px;background:#fff;border-radius:10px;overflow:hidden}th{background:#111;color:#fff;padding:9px 12px;text-align:center;font-weight:600}th:first-child{text-align:left}td{padding:9px 12px;border-bottom:1px solid #F2F1EC;vertical-align:top}tr:last-child td{border:none}@media print{@page{margin:18mm 16mm}}</style></head><body>
+  const kCntP=pct(kCnt,totCnt),kAmtP=pct(kAmt,totAmt);
+  const html=`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${period} 도메인 브리핑 · d.camp</title><style>
+    body{font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;color:#111;padding:32px 44px;font-size:13px;background:#F2F1EC}
+    h1{font-size:22px;font-weight:700;margin-bottom:2px}.logo{color:#FF5831;font-size:14px;font-weight:600;margin-bottom:6px}
+    .meta{font-size:12px;color:#666;margin-bottom:20px}.formula{background:#fff;border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:18px;border-left:4px solid #FF5831}
+    .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}.kc{background:#fff;border-radius:10px;padding:12px 16px}
+    .kl{font-size:10px;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:4px}.kv{font-size:22px;font-weight:700}.ks{font-size:10px;color:#aaa;margin-top:3px}
+    h2{font-size:13px;font-weight:700;margin:18px 0 8px}
+    table{width:100%;border-collapse:collapse;font-size:12px;background:#fff;border-radius:10px;overflow:hidden}
+    th{background:#111;color:#fff;padding:9px 12px;text-align:center;font-weight:600}th:first-child{text-align:left}
+    td{padding:9px 12px;border-bottom:1px solid #F2F1EC;vertical-align:top}tr:last-child td{border:none}
+    .sum{background:#FFF4E0;font-weight:700}@media print{@page{margin:18mm 16mm}}
+  </style></head><body>
   <div class="logo">dcamp</div><h1>직접투자 핵심 도메인 비중 브리핑</h1>
   <div class="meta">${period} · ${periodMode==='c'?'누적':'분기 신규'} · 작성일: ${today}</div>
-  <div class="formula">달성률 산식: 실적 비중(%) ÷ 목표 비중(%) × 100% &emsp;|&emsp; 핵심 집중도 목표: 80% &emsp;|&emsp; 총 투자 한도: 250억원</div>
-  <div class="kpi"><div class="kc"><div class="kl">예산 집행</div><div class="kv">${amtBil}억원</div><div class="ks">${bPct}% / 250억원</div></div><div class="kc"><div class="kl">투자 건수</div><div class="kv">${totCnt.toLocaleString()}건</div><div class="ks">${sorted.length}개 도메인</div></div><div class="kc"><div class="kl">집중도 실적</div><div class="kv" style="color:#FF5831">${concA.toFixed(1)}%</div><div class="ks">목표 80%</div></div><div class="kc"><div class="kl">집중도 달성률</div><div class="kv" style="color:${crc}">${concR!==null?concR.toFixed(1)+'%':'—'}</div><div class="ks">${concA.toFixed(1)}÷80×100</div></div></div>
-  <h2>★ 핵심 도메인 현황 13개</h2>
-  <table><thead><tr><th>도메인</th><th>건수</th><th>건수비중</th><th>금액(만)</th><th>금액비중</th><th>목표</th><th>달성률 산식</th><th>상태</th></tr></thead><tbody>${tableRows}</tbody></table>
+  <div class="formula">핵심 도메인 집중도 목표: 핵심 13개 합산 80% &emsp;|&emsp; 달성률 = 실적% ÷ 80% × 100% (2026년부터 적용)</div>
+  <div class="kpi">
+    <div class="kc"><div class="kl">예산 집행 (단년도)</div><div class="kv">${amtBil}억원</div><div class="ks">${budgetBil?bPct+'% / '+budgetBil+'억원':'연도 미선택'}</div></div>
+    <div class="kc"><div class="kl">투자 건수</div><div class="kv">${totCnt.toLocaleString()}건</div><div class="ks">${sorted.length}개 도메인</div></div>
+    <div class="kc"><div class="kl">핵심 집중도 실적</div><div class="kv" style="color:#FF5831">${concA.toFixed(1)}%</div><div class="ks">목표 80%</div></div>
+    <div class="kc"><div class="kl">집중도 달성률</div><div class="kv" style="color:${crc}">${concR!==null?concR.toFixed(1)+'%':'—'}</div><div class="ks">${is2026?concA.toFixed(1)+'÷80×100':'2026년부터 적용'}</div></div>
+  </div>
+  <h2>★ 핵심 도메인 현황 (13개) — 핵심 도메인 합산 80% 목표</h2>
+  <table><thead><tr><th>도메인</th><th>건수</th><th>건수비중</th><th>금액(만)</th><th>금액비중</th></tr></thead>
+  <tbody>${tableRows}
+    <tr class="sum"><td>소계 (핵심 ${keyRows.length}개)</td><td style="text-align:center">${kCnt}</td><td style="text-align:center;color:#FF5831">${kCntP.toFixed(1)}%</td><td style="text-align:center">${Math.round(kAmt/10000).toLocaleString()}</td><td style="text-align:center;color:#FF5831">${kAmtP.toFixed(1)}%</td></tr>
+  </tbody></table>
   <script>window.onload=()=>window.print();<\/script></body></html>`;
   const w=window.open('','_blank');if(w){w.document.write(html);w.document.close();}else toast('팝업 차단 해제 후 다시 시도','terr');
 }
