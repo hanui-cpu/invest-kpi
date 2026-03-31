@@ -319,13 +319,20 @@ function fetchData(){
   setStat('spin','Google Sheets에서 데이터를 불러오는 중...','');
   Papa.parse(CSV_URL,{download:true,skipEmptyLines:true,
     complete(res){
-      const rows=res.data;
-      if(!rows||rows.length<2){setStat('err','데이터 없음','공개 설정 확인');reset(btn);return;}
-      rawData=rows.slice(1).filter(r=>r[COL.date]?.trim().length>=4);
-      populateYears();renderAll();
-      setStat('ok',`${rawData.length.toLocaleString()}건 로드 완료`,'I열 중분류 · K열 투자금액');
-      document.getElementById('stime').textContent=new Date().toLocaleTimeString('ko-KR');
-      reset(btn);toast('데이터 동기화 완료 — '+rawData.length.toLocaleString()+'건','tok');
+      try{
+        const rows=res.data;
+        if(!rows||rows.length<2){setStat('err','데이터 없음','공개 설정 확인');reset(btn);return;}
+        rawData=rows.slice(1).filter(r=>r[COL.date]?.trim().length>=4);
+        populateYears();renderAll();
+        setStat('ok',`${rawData.length.toLocaleString()}건 로드 완료`,'I열 중분류 · K열 투자금액');
+        document.getElementById('stime').textContent=new Date().toLocaleTimeString('ko-KR');
+        toast('데이터 동기화 완료 — '+rawData.length.toLocaleString()+'건','tok');
+      }catch(e){
+        setStat('err','렌더링 오류',e.message||'콘솔 확인');
+        console.error(e);
+      }finally{
+        reset(btn);
+      }
     },
     error(){setStat('err','연결 실패','공개 설정 확인');reset(btn);toast('데이터 불러오기 실패','terr');}
   });
@@ -447,9 +454,6 @@ function renderCards(sorted,totAmt,totCnt,yv){
   sorted.forEach(([dom,s])=>{if(!KEY_DOMAINS.has(dom)||!targets[dom])return;
     const actual=metricMode==='a'?pct(s.amt,totAmt):pct(s.cnt,totCnt);
     achRate(actual,targets[dom])>=100?ok.push(KEY_SHORT[dom]||dom):bad.push(KEY_SHORT[dom]||dom);});
-  document.getElementById('c-ok').textContent=ok.length;
-  document.getElementById('c-bad').textContent=bad.length;
-  document.getElementById('c-ok-s').textContent=ok.length?ok.join(', '):(bad.length?'달성 없음':'목표 미설정');
 }
 
 function renderChart(display,totAmt,totCnt,yv){
