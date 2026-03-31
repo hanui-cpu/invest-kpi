@@ -241,16 +241,10 @@ tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--bo
 
 <div class="panel">
   <div class="ph">
-    <span class="ph-t" id="chart-title">도메인별 달성률</span>
-    <div style="display:flex;align-items:center;gap:18px">
-      <div class="leg">
-        <div class="li"><div class="lb" style="background:var(--or);opacity:.2;border:1.5px solid var(--or)"></div>목표(100%)</div>
-        <div class="li"><div class="lb" style="background:var(--ok)"></div>달성 ≥100%</div>
-        <div class="li"><div class="lb" style="background:var(--or)"></div>근접 80~99%</div>
-        <div class="li"><div class="lb" style="background:var(--bad)"></div>미달 &lt;80%</div>
-        <div class="li"><div class="lb" style="background:#ccc"></div>목표없음</div>
-      </div>
-      <span style="font-size:10px;color:var(--gray)">★ = 핵심 도메인</span>
+    <span class="ph-t" id="chart-title">도메인별 투자 건수</span>
+    <div class="leg">
+      <div class="li"><div class="lb" style="background:var(--or)"></div>핵심 도메인</div>
+      <div class="li"><div class="lb" style="background:#BBBBBB"></div>일반 도메인</div>
     </div>
   </div>
   <div class="pb">
@@ -397,10 +391,10 @@ function renderAll(){
   const data=getFiltered(),{sorted,totAmt,totCnt}=calcStats(data);
   const display=viewMode==='key'?sorted.filter(([d])=>KEY_DOMAINS.has(d)):sorted;
   renderCards(cSorted,cAmt,cCnt,yv);
-  renderChart(display,totAmt,totCnt);
+  renderChart(display,totAmt,totCnt,yv);
   renderTable(display,totAmt,totCnt,yv);
   const pStr=(yv==='all'?'전체':yv+'년')+(qv==='all'?'':' Q'+qv),mStr=periodMode==='c'?'누적':'분기 신규';
-  document.getElementById('chart-title').textContent=`${pStr} · ${mStr} · 달성률`;
+  document.getElementById('chart-title').textContent=`${pStr} · ${mStr} · 도메인별 투자 건수`;
   document.getElementById('tbl-title').textContent=`${pStr} · 도메인별 상세 현황 (${display.length}개)`;
 }
 
@@ -458,23 +452,47 @@ function renderCards(sorted,totAmt,totCnt,yv){
   document.getElementById('c-ok-s').textContent=ok.length?ok.join(', '):(bad.length?'달성 없음':'목표 미설정');
 }
 
-function renderChart(display,totAmt,totCnt){
+function renderChart(display,totAmt,totCnt,yv){
   const wrap=document.getElementById('chart-wrap'),noc=document.getElementById('no-chart');
   if(!display.length){wrap.style.display='none';noc.style.display='block';return;}
   wrap.style.display='block';noc.style.display='none';
-  wrap.style.height=Math.max(display.length*48+60,200)+'px';
-  const actuals=display.map(([d,s])=>metricMode==='a'?pct(s.amt,totAmt):pct(s.cnt,totCnt));
-  const achRates=display.map(([d],i)=>{const t=targets[d];return t?achRate(actuals[i],t):null;});
-  const tgtLine=display.map(([d])=>targets[d]?100:null);
-  const barColors=display.map(([d],i)=>{const r=achRates[i];if(r===null)return '#CCCCCC';if(r>=100)return '#1A7A4A';if(r>=80)return '#FF5831';return '#C0281C';});
+  wrap.style.height=Math.max(display.length*44+60,200)+'px';
+
+  // 건수 기준 내림차순 정렬
+  const sorted=[...display].sort((a,b)=>b[1].cnt-a[1].cnt);
+  const labels=sorted.map(([d])=>(KEY_DOMAINS.has(d)?'★ ':'')+d);
+  const counts=sorted.map(([,s])=>s.cnt);
+  const colors=sorted.map(([d])=>KEY_DOMAINS.has(d)?'#FF5831':'#BBBBBB');
+
   if(chart){chart.destroy();chart=null;}
   const ctx=document.getElementById('mainChart').getContext('2d');
-  const datasets=[{label:'달성률(%)',data:achRates.map((r,i)=>r!==null?r:actuals[i]),backgroundColor:barColors,borderRadius:4,borderWidth:0}];
-  if(tgtLine.some(v=>v!==null))datasets.unshift({label:'목표(100%)',data:tgtLine,backgroundColor:'rgba(255,88,49,.1)',borderColor:'rgba(255,88,49,.45)',borderWidth:1.5,borderRadius:4});
-  chart=new Chart(ctx,{type:'bar',data:{labels:display.map(([d])=>(KEY_DOMAINS.has(d)?'★ ':'')+d),datasets},
-    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const d=display[c.dataIndex];const actual=metricMode==='a'?pct(d[1].amt,totAmt):pct(d[1].cnt,totCnt);const tgt=targets[d[0]];const r=achRate(actual,tgt);return tgt?` ${actual.toFixed(1)}% ÷ ${tgt}% × 100 = ${r?.toFixed(1)}%`:` 실적: ${actual.toFixed(1)}% (목표 미설정)`;}}}},
-      scales:{x:{beginAtZero:true,ticks:{callback:v=>v+'%',font:{size:10},color:'#888'},grid:{color:'#ECEAE3'}},y:{ticks:{font:{size:11},color:'#444'},grid:{display:false}}}}});
+  chart=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{
+      label:'투자 건수',
+      data:counts,
+      backgroundColor:colors,
+      borderRadius:4,
+      borderWidth:0,
+    }]},
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>{
+          const [dom]=sorted[c.dataIndex];
+          const s=sorted[c.dataIndex][1];
+          const cntP=pct(s.cnt,totCnt),amtP=pct(s.amt,totAmt);
+          const tag=KEY_DOMAINS.has(dom)?'★ 핵심':'일반';
+          return [` ${tag}  |  ${s.cnt}건 (건수비중 ${cntP.toFixed(1)}%)`,` 투자금액: ${Math.round(s.amt/10000).toLocaleString()}만원 (${amtP.toFixed(1)}%)`];
+        }}}
+      },
+      scales:{
+        x:{beginAtZero:true,ticks:{callback:v=>v+'건',font:{size:10},color:'#888'},grid:{color:'#ECEAE3'}},
+        y:{ticks:{font:{size:11},color:'#444'},grid:{display:false}}
+      }
+    }
+  });
 }
 
 function renderTable(display,totAmt,totCnt,yv){
