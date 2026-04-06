@@ -351,7 +351,7 @@ const YEAR_BUDGETS={
 const SHEET_ID='1TQpPtnBowiQKw_dQrol29Gi27PRf7xKzwvUkQaPHW30';
 const CSV_URL=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
 // [수정2] 기업명 컬럼 추가 — B열(index 1)을 기업명으로 사용
-const COL={company:1,date:3,major:7,minor:8,amount:10};
+const COL={company:0,date:3,major:7,minor:8,amount:10};
 const KEY_DOMAINS=new Set(['우주·항공·방산','반도체','플랫폼','신재생에너지','로봇','기계장치','물류','배터리(이차전지)','패션/뷰티','의료기기','모빌리티','탄소저감/관리','사이버보안']);
 const KEY_SHORT={'우주·항공·방산':'우주항공','반도체':'반도체','플랫폼':'플랫폼','신재생에너지':'신재생에너지','로봇':'로봇','기계장치':'기계장치','물류':'물류','배터리(이차전지)':'배터리','패션/뷰티':'패션/뷰티','의료기기':'의료기기','모빌리티':'모빌리티','탄소저감/관리':'탄소저감','사이버보안':'사이버보안'};
 const PALETTE=['#FF5831','#1A7A4A','#1D4ED8','#7C3AED','#0891B2','#BE185D','#B45309','#4D7C0F','#0F766E','#C2410C','#6D28D9','#047857','#1E3A6B','#9D174D','#92400E','#065F46','#1E40AF','#0E7490','#7E22CE','#B91C1C'];
@@ -627,11 +627,11 @@ function renderTable(display,totAmt,totCnt,yv){
       <td colspan="2">★ 핵심 도메인 소계 (${keyRows.length}개)
         <span style="font-size:10px;color:var(--gray);font-weight:400;margin-left:6px">목표: 합산 80%</span>
       </td>
-      <td class="mono">${kCnt.toLocaleString()}</td>
-      <td><span class="mono" style="color:var(--or);font-weight:700">${kCntP.toFixed(1)}%</span></td>
-      <td class="mono">${kAmtEok}</td>
-      <td><span class="mono" style="color:var(--or);font-weight:700">${kAmtP.toFixed(1)}%</span></td>
-      <td>${rateCell}</td>
+      <td class="mono" style="text-align:right">${kCnt.toLocaleString()}</td>
+      <td style="text-align:right"><span class="mono" style="color:var(--or);font-weight:700">${kCntP.toFixed(1)}%</span></td>
+      <td class="mono" style="text-align:right">${kAmtEok}</td>
+      <td style="text-align:right"><span class="mono" style="color:var(--or);font-weight:700">${kAmtP.toFixed(1)}%</span></td>
+      <td style="text-align:right">${rateCell}</td>
     </tr>`;
   }
 }
