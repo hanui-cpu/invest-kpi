@@ -68,6 +68,7 @@ body{font-family:'DM Sans',-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sa
 .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
 .card{background:var(--sf);border-radius:var(--r);padding:20px 22px;border:1px solid var(--border);transition:box-shadow .2s}
 .card:hover{box-shadow:0 4px 20px rgba(0,0,0,.06)}
+/* [수정1] accent 클래스는 유지하되 예산 카드에서 제거 — 다크 카드가 필요한 다른 용도를 위해 클래스는 남김 */
 .card.accent{background:#111;border-color:#111}
 .card.accent .cl,.card.accent .cs{color:rgba(255,255,255,.45)}
 .card.accent .cv,.card.accent .cu{color:#fff}
@@ -79,6 +80,16 @@ body{font-family:'DM Sans',-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sa
 .gauge-bg{height:5px;background:var(--sf2);border-radius:3px;overflow:visible;position:relative}
 .gauge-fill{height:100%;border-radius:3px;transition:width .6s cubic-bezier(.4,0,.2,1)}
 .gauge-lbl{display:flex;justify-content:space-between;font-size:10px;color:var(--gray2);margin-top:6px;font-family:'DM Mono',monospace;position:relative}
+/* [수정4] 핵심 집중도 카드 - 건수 기준 뱃지 */
+.conc-basis-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;background:#E8F5FF;color:#1D4ED8;letter-spacing:.2px}
+/* [수정4] 목표 vs 실적 비교 박스 */
+.conc-compare{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 12px}
+.conc-box{border-radius:10px;padding:11px 10px;text-align:center}
+.conc-box-target{background:var(--sf2)}
+.conc-box-actual{background:var(--or-lt)}
+.conc-box-lbl{font-size:9px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.conc-box-val{font-size:26px;font-weight:700;line-height:1;letter-spacing:-1px}
+.conc-box-sub{font-size:9px;color:var(--gray2);margin-top:3px}
 .panel{background:var(--sf);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;margin-bottom:16px}
 .ph{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
 .ph-t{font-size:13px;font-weight:600}
@@ -213,33 +224,33 @@ tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--bo
   </div>
 </div>
 
+<!-- [수정1] 카드 순서 변경: ① 핵심집중도 → ② 투자건수 → ③ 예산집행현황 -->
 <div class="cards" style="grid-template-columns:repeat(3,1fr)">
-  <div class="card accent">
-    <div class="cl">예산 집행 현황</div>
-    <div><span class="cv" id="c-amt">—</span><span class="cu">억원</span></div>
-    <div class="cs">한도 250억원 기준</div>
-    <div class="gauge-wrap">
-      <div class="gauge-bg"><div class="gauge-fill" id="budget-bar" style="background:var(--or);width:0%"></div></div>
-      <div class="gauge-lbl"><span id="budget-pct-l">0%</span><span>250억</span></div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="cl">투자 건수</div>
-    <div><span class="cv" id="c-cnt">—</span><span class="cu">건</span></div>
-    <div class="cs" id="c-cnt-s">—</div>
-  </div>
+
+  <!-- ① 핵심 집중도 실적 [수정4] 건수 기준 명확화 + 목표/실적 비교 레이아웃 -->
   <div class="card" id="conc-card">
-    <div class="cl">핵심 집중도 실적</div>
-    <div style="display:flex;align-items:baseline;gap:6px">
-      <span class="cv" id="c-conc-rate" style="color:var(--or)">—</span><span class="cu">%</span>
-      <span style="font-size:11px;color:var(--gray);margin-left:4px">/ 목표 80%</span>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+      <div class="cl" style="margin-bottom:0">핵심 집중도 실적</div>
+      <span class="conc-basis-badge">📊 건수 기준</span>
     </div>
-    <div class="cs" id="c-conc-s">달성률 —%</div>
+    <!-- 목표 vs 실적 나란히 비교 -->
+    <div class="conc-compare">
+      <div class="conc-box conc-box-target">
+        <div class="conc-box-lbl">목표</div>
+        <div class="conc-box-val" style="color:var(--black2)">80<span style="font-size:15px;font-weight:500">%</span></div>
+        <div class="conc-box-sub">핵심 13개 합산</div>
+      </div>
+      <div class="conc-box conc-box-actual">
+        <div class="conc-box-lbl">현재 실적</div>
+        <div class="conc-box-val"><span id="c-conc-rate" style="color:var(--or)">—</span><span style="font-size:15px;font-weight:500;color:var(--gray)">%</span></div>
+        <div class="conc-box-sub">투자 건수 비중</div>
+      </div>
+    </div>
+    <div class="cs" id="c-conc-s" style="margin-top:0">달성률 —%</div>
     <div class="gauge-wrap" style="position:relative">
       <div class="gauge-bg">
         <div class="gauge-fill" id="conc-bar" style="background:var(--or);width:0%"></div>
       </div>
-      <!-- 목표 80% 기준선 -->
       <div id="conc-target-line" style="position:absolute;top:0;left:80%;width:2px;height:100%;background:var(--black2);border-radius:1px"></div>
       <div class="gauge-lbl">
         <span id="conc-actual-l">실적 —%</span>
@@ -248,8 +259,28 @@ tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--bo
       </div>
     </div>
   </div>
+
+  <!-- ② 투자 건수 -->
+  <div class="card">
+    <div class="cl">투자 건수</div>
+    <div><span class="cv" id="c-cnt">—</span><span class="cu">건</span></div>
+    <div class="cs" id="c-cnt-s">—</div>
+  </div>
+
+  <!-- ③ 예산 집행 현황 [수정1] accent 클래스 제거 — 검정 강조 스타일 삭제 -->
+  <div class="card" id="budget-card">
+    <div class="cl">예산 집행 현황</div>
+    <div><span class="cv" id="c-amt">—</span><span class="cu">억원</span></div>
+    <div class="cs" id="budget-card-sub">한도 250억원 기준</div>
+    <div class="gauge-wrap">
+      <div class="gauge-bg"><div class="gauge-fill" id="budget-bar" style="background:var(--or);width:0%"></div></div>
+      <div class="gauge-lbl"><span id="budget-pct-l">0%</span><span id="budget-lbl-r">250억</span></div>
+    </div>
+  </div>
+
 </div>
 
+<!-- 차트 패널 -->
 <div class="panel">
   <div class="ph">
     <span class="ph-t" id="chart-title">도메인별 투자 건수</span>
@@ -266,6 +297,7 @@ tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--bo
   </div>
 </div>
 
+<!-- 테이블 패널 -->
 <div class="panel">
   <div class="ph">
     <span class="ph-t" id="tbl-title">도메인별 상세 현황</span>
@@ -276,7 +308,8 @@ tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--bo
       <thead><tr>
         <th>도메인 (중분류)</th><th>구분</th>
         <th>건수</th><th>건수 비중</th>
-        <th>금액 (만원)</th><th>금액 비중</th>
+        <!-- [수정3] 금액 단위 만원 → 억원 -->
+        <th>금액 (억원)</th><th>금액 비중</th>
         <th>집중도 달성률</th>
       </tr></thead>
       <tbody id="tbl-body"></tbody>
@@ -284,7 +317,7 @@ tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--bo
   </div>
 </div>
 
-</div>
+</div><!-- /wrap -->
 
 <div class="ov" id="tgt-modal">
   <div class="modal">
@@ -317,7 +350,8 @@ const YEAR_BUDGETS={
 };
 const SHEET_ID='1TQpPtnBowiQKw_dQrol29Gi27PRf7xKzwvUkQaPHW30';
 const CSV_URL=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
-const COL={date:3,major:7,minor:8,amount:10};
+// [수정2] 기업명 컬럼 추가 — B열(index 1)을 기업명으로 사용
+const COL={company:1,date:3,major:7,minor:8,amount:10};
 const KEY_DOMAINS=new Set(['우주·항공·방산','반도체','플랫폼','신재생에너지','로봇','기계장치','물류','배터리(이차전지)','패션/뷰티','의료기기','모빌리티','탄소저감/관리','사이버보안']);
 const KEY_SHORT={'우주·항공·방산':'우주항공','반도체':'반도체','플랫폼':'플랫폼','신재생에너지':'신재생에너지','로봇':'로봇','기계장치':'기계장치','물류':'물류','배터리(이차전지)':'배터리','패션/뷰티':'패션/뷰티','의료기기':'의료기기','모빌리티':'모빌리티','탄소저감/관리':'탄소저감','사이버보안':'사이버보안'};
 const PALETTE=['#FF5831','#1A7A4A','#1D4ED8','#7C3AED','#0891B2','#BE185D','#B45309','#4D7C0F','#0F766E','#C2410C','#6D28D9','#047857','#1E3A6B','#9D174D','#92400E','#065F46','#1E40AF','#0E7490','#7E22CE','#B91C1C'];
@@ -365,19 +399,24 @@ function qi(str){if(!str)return null;const d=new Date(str.trim());if(isNaN(d))re
 function parseAmt(str){return str?parseInt(String(str).replace(/[,\s]/g,''))||0:0;}
 function pct(v,tot){return tot?Math.round(v/tot*1000)/10:0;}
 function achRate(actual,tgt){return tgt?Math.round(actual/tgt*1000)/10:null;}
+
+// [수정3] 억원 포맷 헬퍼
+function fmtEok(wonAmt){
+  const eok=wonAmt/1e8;
+  return eok>=10?eok.toFixed(1):eok.toFixed(2);
+}
+
 function getFiltered(){
   const yv=document.getElementById('f-year').value,qv=document.getElementById('f-q').value;
   const y=yv==='all'?null:+yv,q=qv==='all'?null:+qv;
   return rawData.filter(r=>{
     const info=qi(r[COL.date]);if(!info)return false;
-    // 항상 선택 연도 내에서만 집계 (연도 간 누적 없음)
     if(y&&info.y!==y)return false;
     if(periodMode==='q'){if(q&&info.q!==q)return false;}
-    else{if(q&&info.q>q)return false;} // 누적 = 연도 내 해당 분기까지
+    else{if(q&&info.q>q)return false;}
     return true;
   });
 }
-// 카드용 필터: 분기 선택 무관, 연도 전체
 function getCardFiltered(){
   const yv=document.getElementById('f-year').value;
   const y=yv==='all'?null:+yv;
@@ -387,16 +426,27 @@ function getCardFiltered(){
     return true;
   });
 }
+
+// [수정2] calcStats — 기업명 Set 수집 추가
 function calcStats(data){
   const g={};let totAmt=0,totCnt=0;
-  data.forEach(r=>{const dom=(r[COL.minor]||'미분류').trim(),amt=parseAmt(r[COL.amount]);
-    if(!g[dom])g[dom]={cnt:0,amt:0};g[dom].cnt++;g[dom].amt+=amt;totCnt++;totAmt+=amt;});
+  data.forEach(r=>{
+    const dom=(r[COL.minor]||'미분류').trim();
+    const amt=parseAmt(r[COL.amount]);
+    const company=(r[COL.company]||'').trim();
+    if(!g[dom])g[dom]={cnt:0,amt:0,companies:new Set()};
+    g[dom].cnt++;
+    g[dom].amt+=amt;
+    if(company)g[dom].companies.add(company);
+    totCnt++;totAmt+=amt;
+  });
   const sorted=Object.entries(g).sort((a,b)=>{
     const ak=KEY_DOMAINS.has(a[0])?1:0,bk=KEY_DOMAINS.has(b[0])?1:0;
     if(ak!==bk)return bk-ak;return b[1].amt-a[1].amt;
   });
   return{sorted,totAmt,totCnt};
 }
+
 function setPeriod(m){periodMode=m;document.getElementById('pm-c').className='sb'+(m==='c'?' on':'');document.getElementById('pm-q').className='sb'+(m==='q'?' on':'');renderAll();}
 function setMetric(m){metricMode=m;document.getElementById('mt-c').className='sb'+(m==='c'?' on':'');document.getElementById('mt-a').className='sb'+(m==='a'?' on':'');renderAll();}
 function setView(v){viewMode=v;document.getElementById('vw-all').className='sb'+(v==='all'?' on':'');document.getElementById('vw-key').className='sb'+(v==='key'?' on':'');renderAll();}
@@ -404,7 +454,6 @@ function setView(v){viewMode=v;document.getElementById('vw-all').className='sb'+
 function renderAll(){
   if(!rawData.length)return;
   const yv=document.getElementById('f-year').value,qv=document.getElementById('f-q').value;
-  // 카드: 단년도 집계 / 차트·테이블: 선택 모드(누적·분기신규) 적용
   const cardData=getCardFiltered();
   const {sorted:cSorted,totAmt:cAmt,totCnt:cCnt}=calcStats(cardData);
   const data=getFiltered(),{sorted,totAmt,totCnt}=calcStats(data);
@@ -418,10 +467,11 @@ function renderAll(){
 }
 
 function renderCards(sorted,totAmt,totCnt,yv){
-  // ① 투자금액 — 단년도 집계
+  // 예산 집행
   const amtBil=Math.round(totAmt/1e7)/10;
   document.getElementById('c-amt').textContent=amtBil.toLocaleString();
-  // ② 연도별 예산 배정액
+
+  // [수정1] 예산 카드 — accent 제거됐으므로 ID로 참조
   const budget=yv&&yv!=='all'?YEAR_BUDGETS[+yv]:null;
   if(budget){
     const bPct=Math.min(Math.round(totAmt/budget*1000)/10,200);
@@ -429,38 +479,40 @@ function renderCards(sorted,totAmt,totCnt,yv){
     document.getElementById('budget-bar').style.background=bPct>=100?'var(--bad)':bPct>=80?'var(--or)':'var(--ok)';
     document.getElementById('budget-pct-l').textContent=bPct+'%';
     const budgetBil=Math.round(budget/1e7)/10;
-    document.querySelector('.card.accent .cs').textContent=`한도 ${budgetBil}억원 기준`;
-    const budgetGaugeLbl=document.querySelector('#budget-pct-l').closest('.gauge-lbl');
-    if(budgetGaugeLbl)budgetGaugeLbl.lastElementChild.textContent=budgetBil+'억';
+    document.getElementById('budget-card-sub').textContent=`한도 ${budgetBil}억원 기준`;
+    document.getElementById('budget-lbl-r').textContent=budgetBil+'억';
   } else {
     document.getElementById('budget-bar').style.width='0%';
     document.getElementById('budget-pct-l').textContent='—';
-    document.querySelector('.card.accent .cs').textContent='연도를 선택하면 예산 한도가 표시됩니다';
+    document.getElementById('budget-card-sub').textContent='연도를 선택하면 예산 한도가 표시됩니다';
+    document.getElementById('budget-lbl-r').textContent='250억';
   }
-  // ③ 투자건수 — 단년도 집계
+
+  // 투자건수
   document.getElementById('c-cnt').textContent=totCnt.toLocaleString();
   document.getElementById('c-cnt-s').textContent=sorted.length+'개 도메인';
-  // ④ 핵심 집중도 달성률 — 2026년에만 표시
+
+  // [수정4] 핵심 집중도 카드 — 건수 기준 고정, 목표/실적 비교
   const concCard=document.getElementById('conc-card');
   const is2026=yv==='2026';
   if(concCard)concCard.style.opacity=is2026?'1':'0.35';
-  const keyAmt=sorted.filter(([d])=>KEY_DOMAINS.has(d)).reduce((s,[,v])=>s+v.amt,0);
   const keyCnt=sorted.filter(([d])=>KEY_DOMAINS.has(d)).reduce((s,[,v])=>s+v.cnt,0);
+  const keyAmt=sorted.filter(([d])=>KEY_DOMAINS.has(d)).reduce((s,[,v])=>s+v.amt,0);
   const concEl=document.getElementById('c-conc-rate');
   if(!is2026){
-    concEl.textContent='—';concEl.style.color='var(--gray)';
+    concEl.textContent='—';
+    concEl.style.color='var(--gray)';
     document.getElementById('conc-bar').style.width='0%';
     document.getElementById('conc-actual-l').textContent='2026년 전용 지표';
     document.getElementById('c-conc-s').textContent='2026년 선택 시 표시됩니다';
   } else {
-    const concActual=metricMode==='a'?pct(keyAmt,totAmt):pct(keyCnt,totCnt);
+    // 집중도 실적: 항상 건수 기준 (카드는 건수 고정)
+    const concActual=pct(keyCnt,totCnt);
     const concRate=achRate(concActual,CONC_TARGET);
     const rateColor=!concRate?'var(--black)':concRate>=100?'var(--ok)':concRate>=80?'var(--warn)':'var(--bad)';
-    // 카드 큰 숫자: 실적%
     concEl.textContent=concActual.toFixed(1);
     concEl.style.color=rateColor;
-    // 게이지: 실적% 기준 (80% 스케일에서 표시, 100% = 80%이 꽉 참)
-    const barW=Math.min(concActual/100*100,100); // 0~100% 그대로 표시
+    const barW=Math.min(concActual/100*100,100);
     document.getElementById('conc-bar').style.width=barW+'%';
     document.getElementById('conc-bar').style.background=concActual>=CONC_TARGET?'var(--ok)':concActual>=CONC_TARGET*0.8?'var(--or)':'var(--bad)';
     document.getElementById('conc-actual-l').textContent='실적 '+concActual.toFixed(1)+'%';
@@ -472,13 +524,13 @@ function renderCards(sorted,totAmt,totCnt,yv){
     achRate(actual,targets[dom])>=100?ok.push(KEY_SHORT[dom]||dom):bad.push(KEY_SHORT[dom]||dom);});
 }
 
+// [수정2] renderChart — 기업명 툴팁 추가
 function renderChart(display,totAmt,totCnt,yv){
   const wrap=document.getElementById('chart-wrap'),noc=document.getElementById('no-chart');
   if(!display.length){wrap.style.display='none';noc.style.display='block';return;}
   wrap.style.display='block';noc.style.display='none';
   wrap.style.height=Math.max(display.length*44+60,200)+'px';
 
-  // 건수 기준 내림차순 정렬
   const sorted=[...display].sort((a,b)=>b[1].cnt-a[1].cnt);
   const labels=sorted.map(([d])=>(KEY_DOMAINS.has(d)?'★ ':'')+d);
   const counts=sorted.map(([,s])=>s.cnt);
@@ -499,13 +551,32 @@ function renderChart(display,totAmt,totCnt,yv){
       indexAxis:'y',responsive:true,maintainAspectRatio:false,
       plugins:{
         legend:{display:false},
-        tooltip:{callbacks:{label:c=>{
-          const [dom]=sorted[c.dataIndex];
-          const s=sorted[c.dataIndex][1];
-          const cntP=pct(s.cnt,totCnt),amtP=pct(s.amt,totAmt);
-          const tag=KEY_DOMAINS.has(dom)?'★ 핵심':'일반';
-          return [` ${tag}  |  ${s.cnt}건 (건수비중 ${cntP.toFixed(1)}%)`,` 투자금액: ${Math.round(s.amt/10000).toLocaleString()}만원 (${amtP.toFixed(1)}%)`];
-        }}}
+        tooltip:{
+          callbacks:{
+            label:c=>{
+              const [dom,s]=sorted[c.dataIndex];
+              const cntP=pct(s.cnt,totCnt),amtP=pct(s.amt,totAmt);
+              const tag=KEY_DOMAINS.has(dom)?'★ 핵심':'일반';
+              return [
+                ` ${tag}  |  ${s.cnt}건 (건수비중 ${cntP.toFixed(1)}%)`,
+                ` 투자금액: ${fmtEok(s.amt)}억원 (${amtP.toFixed(1)}%)`
+              ];
+            },
+            // [수정2] 기업명 목록을 afterBody로 표시
+            afterBody:c=>{
+              const [,s]=sorted[c[0].dataIndex];
+              const companies=[...s.companies].filter(Boolean);
+              if(!companies.length)return[];
+              const lines=[' ─────────────────'];
+              lines.push(' 📋 포함 기업:');
+              // 최대 10개만 표시 (너무 길면 잘림)
+              const MAX=10;
+              companies.slice(0,MAX).forEach(co=>lines.push(`   · ${co}`));
+              if(companies.length>MAX)lines.push(`   외 ${companies.length-MAX}개`);
+              return lines;
+            }
+          }
+        }
       },
       scales:{
         x:{beginAtZero:true,ticks:{callback:v=>v+'건',font:{size:10},color:'#888'},grid:{color:'#ECEAE3'}},
@@ -515,6 +586,7 @@ function renderChart(display,totAmt,totCnt,yv){
   });
 }
 
+// [수정3] renderTable — 금액 단위 만원 → 억원
 function renderTable(display,totAmt,totCnt,yv){
   const tbody=document.getElementById('tbl-body');
   const is2026=yv==='2026';
@@ -524,12 +596,14 @@ function renderTable(display,totAmt,totCnt,yv){
     const cntP=pct(s.cnt,totCnt),amtP=pct(s.amt,totAmt);
     const color=PALETTE[i%PALETTE.length];
     const keyBadge=isKey?'<span class="badge bstar">★ 핵심</span>':'<span style="font-size:10px;color:var(--gray2)">일반</span>';
+    // [수정3] 금액을 억원으로 변환
+    const amtEok=fmtEok(s.amt);
     return `<tr class="${isKey?'key-row':''}">
       <td><div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span><span style="font-weight:${isKey?700:500}">${dom}</span></div></td>
       <td style="text-align:left">${keyBadge}</td>
       <td class="mono" style="font-weight:600">${s.cnt.toLocaleString()}</td>
       <td><span class="mono" style="font-weight:700">${cntP.toFixed(1)}%</span></td>
-      <td class="mono">${Math.round(s.amt/10000).toLocaleString()}</td>
+      <td class="mono">${amtEok}</td>
       <td><span class="mono" style="font-weight:700">${amtP.toFixed(1)}%</span></td>
       <td>—</td>
     </tr>`;
@@ -547,13 +621,15 @@ function renderTable(display,totAmt,totCnt,yv){
       ? `<div><span class="mono" style="font-size:14px;font-weight:700;color:${crc}">${concR!==null?concR.toFixed(1)+'%':'—'}</span></div>
          <div style="font-size:10px;color:var(--gray);font-family:'DM Mono',monospace;margin-top:2px">${concA.toFixed(1)} ÷ 80 × 100</div>`
       : `<span style="font-size:11px;color:var(--gray)">2026년 전용</span>`;
+    // [수정3] 소계 금액도 억원으로
+    const kAmtEok=fmtEok(kAmt);
     tbody.innerHTML+=`<tr class="sum-row">
       <td colspan="2">★ 핵심 도메인 소계 (${keyRows.length}개)
         <span style="font-size:10px;color:var(--gray);font-weight:400;margin-left:6px">목표: 합산 80%</span>
       </td>
       <td class="mono">${kCnt.toLocaleString()}</td>
       <td><span class="mono" style="color:var(--or);font-weight:700">${kCntP.toFixed(1)}%</span></td>
-      <td class="mono">${Math.round(kAmt/10000).toLocaleString()}</td>
+      <td class="mono">${kAmtEok}</td>
       <td><span class="mono" style="color:var(--or);font-weight:700">${kAmtP.toFixed(1)}%</span></td>
       <td>${rateCell}</td>
     </tr>`;
@@ -598,7 +674,7 @@ function doPrint(){
   const is2026=yv==='2026';
   const keyRows=sorted.filter(([d])=>KEY_DOMAINS.has(d));
   const kAmt=keyRows.reduce((s,[,v])=>s+v.amt,0),kCnt=keyRows.reduce((s,[,v])=>s+v.cnt,0);
-  const concA=metricMode==='a'?pct(kAmt,totAmt):pct(kCnt,totCnt);
+  const concA=pct(kCnt,totCnt); // 브리핑도 건수 기준 고정
   const concR=is2026?achRate(concA,CONC_TARGET):null;
   const crc=concR===null?'#888':concR>=100?'#1A7A4A':concR>=80?'#A05A00':'#C0281C';
   const tableRows=keyRows.map(([dom,s])=>{
@@ -606,7 +682,7 @@ function doPrint(){
     return `<tr><td style="font-weight:700">${KEY_SHORT[dom]||dom}</td>
       <td style="text-align:center;font-family:monospace">${s.cnt}</td>
       <td style="text-align:center;font-weight:700;font-family:monospace">${cntP.toFixed(1)}%</td>
-      <td style="text-align:center;font-family:monospace">${Math.round(s.amt/10000).toLocaleString()}</td>
+      <td style="text-align:center;font-family:monospace">${fmtEok(s.amt)}</td>
       <td style="text-align:center;font-weight:700;font-family:monospace">${amtP.toFixed(1)}%</td></tr>`;
   }).join('');
   const kCntP=pct(kCnt,totCnt),kAmtP=pct(kAmt,totAmt);
@@ -624,17 +700,17 @@ function doPrint(){
   </style></head><body>
   <div class="logo">dcamp</div><h1>직접투자 핵심 도메인 비중 브리핑</h1>
   <div class="meta">${period} · ${periodMode==='c'?'누적':'분기 신규'} · 작성일: ${today}</div>
-  <div class="formula">핵심 도메인 집중도 목표: 핵심 13개 합산 80% &emsp;|&emsp; 달성률 = 실적% ÷ 80% × 100% (2026년부터 적용)</div>
+  <div class="formula">핵심 도메인 집중도 목표: 핵심 13개 합산 80% (건수 기준) &emsp;|&emsp; 달성률 = 실적% ÷ 80% × 100% (2026년부터 적용)</div>
   <div class="kpi">
     <div class="kc"><div class="kl">예산 집행 (단년도)</div><div class="kv">${amtBil}억원</div><div class="ks">${budgetBil?bPct+'% / '+budgetBil+'억원':'연도 미선택'}</div></div>
     <div class="kc"><div class="kl">투자 건수</div><div class="kv">${totCnt.toLocaleString()}건</div><div class="ks">${sorted.length}개 도메인</div></div>
-    <div class="kc"><div class="kl">핵심 집중도 실적</div><div class="kv" style="color:#FF5831">${concA.toFixed(1)}%</div><div class="ks">목표 80%</div></div>
+    <div class="kc"><div class="kl">핵심 집중도 실적 (건수기준)</div><div class="kv" style="color:#FF5831">${concA.toFixed(1)}%</div><div class="ks">목표 80%</div></div>
     <div class="kc"><div class="kl">집중도 달성률</div><div class="kv" style="color:${crc}">${concR!==null?concR.toFixed(1)+'%':'—'}</div><div class="ks">${is2026?concA.toFixed(1)+'÷80×100':'2026년부터 적용'}</div></div>
   </div>
   <h2>★ 핵심 도메인 현황 (13개) — 핵심 도메인 합산 80% 목표</h2>
-  <table><thead><tr><th>도메인</th><th>건수</th><th>건수비중</th><th>금액(만)</th><th>금액비중</th></tr></thead>
+  <table><thead><tr><th>도메인</th><th>건수</th><th>건수비중</th><th>금액(억원)</th><th>금액비중</th></tr></thead>
   <tbody>${tableRows}
-    <tr class="sum"><td>소계 (핵심 ${keyRows.length}개)</td><td style="text-align:center">${kCnt}</td><td style="text-align:center;color:#FF5831">${kCntP.toFixed(1)}%</td><td style="text-align:center">${Math.round(kAmt/10000).toLocaleString()}</td><td style="text-align:center;color:#FF5831">${kAmtP.toFixed(1)}%</td></tr>
+    <tr class="sum"><td>소계 (핵심 ${keyRows.length}개)</td><td style="text-align:center">${kCnt}</td><td style="text-align:center;color:#FF5831">${kCntP.toFixed(1)}%</td><td style="text-align:center">${fmtEok(kAmt)}</td><td style="text-align:center;color:#FF5831">${kAmtP.toFixed(1)}%</td></tr>
   </tbody></table>
   <script>window.onload=()=>window.print();<\/script></body></html>`;
   const w=window.open('','_blank');if(w){w.document.write(html);w.document.close();}else toast('팝업 차단 해제 후 다시 시도','terr');
@@ -642,13 +718,11 @@ function doPrint(){
 let toastT;
 function toast(msg,cls=''){const el=document.getElementById('toast');el.textContent=msg;el.className='toast'+(cls?' '+cls:'');void el.offsetWidth;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),3500);}
 
-// 관리자 키 확인 — URL에 ?admin=dcamp2026 이 있을 때만 버튼 표시
 const ADMIN_KEY = 'dcamp2026';
 const urlParams = new URLSearchParams(window.location.search);
 if(urlParams.get('admin') === ADMIN_KEY){
   document.getElementById('sync-btn').style.display = 'inline-flex';
 }
-// 페이지 열리면 자동으로 데이터 로드
 window.addEventListener('load', fetchData);
 </script>
 </body>
