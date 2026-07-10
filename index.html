@@ -1975,17 +1975,17 @@ async function fetchFundData(){
     // [15차] 6개 fetch 병렬
     //   GP 시트: 컬럼 타입 자동 감지 이슈 회피 위해 좁은 범위로 분할 fetch
     //   • 해외펀드 detail (표 A): A22:O35 → 통화구분/필요액·집행액 원화 컬럼 보존
-    //   • 국내 투자 집행 리스트: A90:L130 → GP/펀드명/업종 문자열 보존
+    //   • 국내 투자 집행 리스트: A118:L174 → 표 이동(~120~137행) 반영, A열부터 읽어 컬럼 인덱스 정렬 유지
     //   • [신규] 분기별 환율표: K38:M42 → 기준일자별 USD/JPY 환율
-    //   • [신규] 해외 투자리스트 (표 B): C37:I49 → deal 단위 + D열 투자일자 (KPI3 cutoff 본 원천)
+    //   • [신규] 해외 투자리스트 (표 B): B37:I80 → deal 단위 + D열 투자일자 (KPI3 본 원천), 버퍼 79행까지 수용
     //   전체 GP 시트는 요약값(target/rate) + 국내 펀드 detail용
     const [domainRows,gpRows,gpIntlRows,dealRows,fxTableRows,intlDealRows]=await Promise.all([
       fetchCsvRows(fundCsvUrl(FUND_SHEETS.domain)),
       fetchCsvRows(fundCsvUrl(FUND_SHEETS.gp)),
       fetchCsvRows(fundCsvUrl(FUND_SHEETS.gp,'A22:O35')),
-      fetchCsvRows(fundCsvUrl(FUND_SHEETS.gp,'A90:L130')),
-      fetchCsvRows(fundCsvUrl(FUND_SHEETS.gp,'K38:M42')),  // 분기별 환율표
-      fetchCsvRows(fundCsvUrl(FUND_SHEETS.gp,'B37:I50')),  // 해외 투자리스트 (deal 단위, B열 패딩 포함)
+      fetchCsvRows(fundCsvUrl(FUND_SHEETS.gp,'A118:L174')),  // 국내 투자 집행 (표 이동 반영, A열 시작으로 인덱스 정렬, 174행까지 여유)
+      fetchCsvRows(fundCsvUrl(FUND_SHEETS.gp,'K38:M42')),    // 분기별 환율표
+      fetchCsvRows(fundCsvUrl(FUND_SHEETS.gp,'B37:I80')),    // 해외 투자리스트 (deal 단위, B열 패딩) — 버퍼 79행까지, 파서가 빈 투자일자에서 종료
     ]);
     parseFundDomain(domainRows);
     parseFundGP(gpRows);
@@ -2133,7 +2133,7 @@ function parseFundFxTable(rows){
     .sort();
 }
 
-// ── [15차+진단] 해외 투자리스트 (표 B) 파싱 — B37:I50 (B열 패딩) ─────
+// ── [15차+진단] 해외 투자리스트 (표 B) 파싱 — B37:I80 (B열 패딩, 버퍼 79행까지) ─────
 // 헤더 컬럼을 동적 매핑하므로 좁은 범위 fetch의 컬럼 drop 이슈에 강건
 function parseFundIntlDeals(rows){
   fundData.intlDeals=[];
@@ -2223,11 +2223,13 @@ function parseFundIntlDeals(rows){
     const fund=colMap.fund>=0?String(dr[colMap.fund]||'').trim():'';
     if(/합계|총계|SUM/i.test(company)||/합계|총계|SUM/i.test(fund))break;
     const invDate=String(dr[colMap.date]||'').trim();
-    if(!invDate){continue;}    // 중간 빈 셀 허용 (break 아님)
+    // deal 표는 연속 데이터 → 투자일자가 빈 행 = 표의 끝 (합계행/다음 표 경계에서 종료)
+    if(!invDate)break;
     const dn=parseFundDate(invDate);
+    // 날짜 파싱 불가 행 = 표 경계로 간주하고 종료 (아래 국내펀드 표 오염 방지)
     if(!dn){
-      console.warn('[fund/intlDeals] 투자일자 파싱 실패:',invDate);
-      continue;
+      console.warn('[fund/intlDeals] 투자일자 파싱 실패 → 표 종료로 간주:',invDate);
+      break;
     }
     if(!company && !fund)continue;
     const currency=colMap.currency>=0?(String(dr[colMap.currency]||'').trim().toUpperCase()||'KRW'):'KRW';
@@ -2302,7 +2304,7 @@ function parseFundIntlDetail(rows){
   }
 }
 
-// [9차] 국내 투자 집행 리스트 정밀 재파싱 — 좁은 범위 A90:L130
+// [9차] 국내 투자 집행 리스트 정밀 재파싱 — 좁은 범위 A118:L174
 // GP(J), 펀드명(K), 펀드분류(C), 업종(H)이 좁은 범위에서는 정상 반환됨
 function parseFundDeals(rows){
   if(!rows||!rows.length)return;
