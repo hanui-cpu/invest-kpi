@@ -952,17 +952,17 @@ const YEAR_BUDGETS={
 };
 const SHEET_ID='1TQpPtnBowiQKw_dQrol29Gi27PRf7xKzwvUkQaPHW30';
 const CSV_URL=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
-// [수정-2차] 컬럼 매핑 전면 교체 (정답)
+// [수정-3차] 시트에 "대분류" 열이 K열에 추가 삽입되어 그 뒤 컬럼이 전부 1칸씩 뒤로 밀림 (2026-07-10 확인)
 //   A(0) 기업명 | D(3) 투자일자 | E(4) 회수일자 | F(5) Pre-value
-//   K(10) 중분류 | M(12) 투자금액 | N(13) 회수금액
+//   K(10) 대분류(신규) | L(11) 중분류 | N(13) 투자금액 | O(14) 회수금액
 const COLUMN_MAP={
   company:0,   // A열 기업명
   date:3,      // D열 투자일자
   exitDate:4,  // E열 회수일자
   preValue:5,  // F열 Pre-value
-  minor:10,    // K열 중분류(도메인)
-  amount:12,   // M열 투자금액
-  exitAmount:13// N열 회수금액
+  minor:11,    // L열 중분류(도메인)
+  amount:13,   // N열 투자금액
+  exitAmount:14// O열 회수금액
 };
 // 기존 코드가 COL.* 로 참조하므로 동일 별칭 유지
 const COL=COLUMN_MAP;
