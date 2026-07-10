@@ -493,17 +493,15 @@ table td,table th{font-variant-numeric:tabular-nums}
       </div>
     </div>
 
-    <!-- 투자 1) 도메인별 투자 건수/금액 차트 -->
+    <!-- 투자 1) 도메인별 투자 금액+건수 차트 (그룹 막대) -->
     <div class="panel">
       <div class="ph">
-        <span class="ph-t" id="chart-title">도메인별 투자 건수</span>
+        <span class="ph-t" id="chart-title">도메인별 투자 금액 · 건수</span>
         <div class="leg">
           <div class="li"><div class="lb" style="background:var(--or)"></div>핵심 도메인</div>
           <div class="li"><div class="lb" style="background:#BBBBBB"></div>일반 도메인</div>
-        </div>
-        <div class="seg">
-          <button class="sb on" id="mt-c" onclick="setMetric('c')">건수</button>
-          <button class="sb"    id="mt-a" onclick="setMetric('a')">금액</button>
+          <div class="li"><div class="lb" style="background:#888"></div>금액(채움)</div>
+          <div class="li"><div class="lb" style="background:repeating-linear-gradient(45deg,#888 0 2px,transparent 2px 5px)"></div>건수(빗금)</div>
         </div>
       </div>
       <div class="pb">
@@ -1139,7 +1137,7 @@ function renderAll(){
   renderChart(display,totAmt,totCnt,yv);
   renderTable(display,totAmt,totCnt,yv);
   const pStr=(yv==='all'?'전체':yv+'년')+(qv==='all'?'':' Q'+qv),mStr=periodMode==='c'?'누적':'분기 신규';
-  document.getElementById('chart-title').textContent=`${pStr} · ${mStr} · 도메인별 투자 ${metricMode==='a'?'금액':'건수'}`;
+  document.getElementById('chart-title').textContent=`${pStr} · ${mStr} · 도메인별 투자 금액 · 건수`;
   document.getElementById('tbl-title').textContent=`${pStr} · 도메인별 상세 현황 (${display.length}개)`;
 
   // [추가] 극초기/회수 섹션 렌더 (연도 필터 연동)
@@ -1462,43 +1460,51 @@ function renderCards(sorted,totAmt,totCnt,yv){
 }
 
 // [수정2] renderChart — 기업명 툴팁 추가
+// [추가] 건수 막대용 빗금(대각선 해칭) 캔버스 패턴 생성
+function makeHatchPattern(color){
+  const c=document.createElement('canvas');c.width=8;c.height=8;
+  const p=c.getContext('2d');
+  p.strokeStyle=color;p.lineWidth=2;
+  [[-2,2,2,-2],[0,8,8,0],[6,10,10,6]].forEach(([x1,y1,x2,y2])=>{
+    p.beginPath();p.moveTo(x1,y1);p.lineTo(x2,y2);p.stroke();
+  });
+  return p.createPattern(c,'repeat');
+}
+
 function renderChart(display,totAmt,totCnt,yv){
   const wrap=document.getElementById('chart-wrap'),noc=document.getElementById('no-chart');
   if(!display.length){wrap.style.display='none';noc.style.display='block';return;}
   wrap.style.display='block';noc.style.display='none';
-  wrap.style.height=Math.max(display.length*44+60,200)+'px';
+  wrap.style.height=Math.max(display.length*56+60,200)+'px';
 
-  const isAmt=metricMode==='a';
-  const sorted=[...display].sort((a,b)=>isAmt?b[1].amt-a[1].amt:b[1].cnt-a[1].cnt);
+  const sorted=[...display].sort((a,b)=>b[1].amt-a[1].amt);
   const labels=sorted.map(([d])=>(KEY_DOMAINS.has(d)?'★ ':'')+d);
-  const values=sorted.map(([,s])=>isAmt?+(s.amt/1e8).toFixed(2):s.cnt);
-  const colors=sorted.map(([d])=>KEY_DOMAINS.has(d)?'#FF5831':'#BBBBBB');
+  const amtValues=sorted.map(([,s])=>+(s.amt/1e8).toFixed(2));
+  const cntValues=sorted.map(([,s])=>s.cnt);
+  const solidColors=sorted.map(([d])=>KEY_DOMAINS.has(d)?'#FF5831':'#BBBBBB');
+  const hatchColors=sorted.map(([d])=>makeHatchPattern(KEY_DOMAINS.has(d)?'#FF5831':'#999999'));
 
   if(chart){chart.destroy();chart=null;}
   const ctx=document.getElementById('mainChart').getContext('2d');
   chart=new Chart(ctx,{
     type:'bar',
-    data:{labels,datasets:[{
-      label:isAmt?'투자금액(억원)':'투자 건수',
-      data:values,
-      backgroundColor:colors,
-      borderRadius:4,
-      borderWidth:0,
-    }]},
+    data:{labels,datasets:[
+      {label:'투자금액(억원)',data:amtValues,backgroundColor:solidColors,borderRadius:4,borderWidth:0,xAxisID:'x'},
+      {label:'투자 건수',data:cntValues,backgroundColor:hatchColors,borderColor:solidColors,borderWidth:1,borderRadius:4,xAxisID:'x2'}
+    ]},
     options:{
       indexAxis:'y',responsive:true,maintainAspectRatio:false,
       plugins:{
         legend:{display:false},
         tooltip:{
+          mode:'index',intersect:false,
           callbacks:{
             label:c=>{
               const [dom,s]=sorted[c.dataIndex];
               const cntP=pct(s.cnt,totCnt),amtP=pct(s.amt,totAmt);
-              const tag=KEY_DOMAINS.has(dom)?'★ 핵심':'일반';
-              return [
-                ` ${tag}  |  ${s.cnt}건 (건수비중 ${cntP.toFixed(1)}%)`,
-                ` 투자금액: ${fmtEok(s.amt)}억원 (${amtP.toFixed(1)}%)`
-              ];
+              return c.datasetIndex===0
+                ? ` 투자금액: ${fmtEok(s.amt)}억원 (${amtP.toFixed(1)}%)`
+                : ` 투자건수: ${s.cnt}건 (${cntP.toFixed(1)}%)`;
             },
             // [수정2] 기업명 목록을 afterBody로 표시
             afterBody:c=>{
@@ -1517,7 +1523,8 @@ function renderChart(display,totAmt,totCnt,yv){
         }
       },
       scales:{
-        x:{beginAtZero:true,ticks:{stepSize:isAmt?undefined:1,callback:v=>isAmt?v+'억':(Number.isInteger(v)?v+'건':null),font:{size:10},color:'#888'},grid:{color:'#ECEAE3'}},
+        x:{position:'bottom',beginAtZero:true,ticks:{callback:v=>v+'억',font:{size:10},color:'#888'},grid:{color:'#ECEAE3'},title:{display:true,text:'금액(억원)',font:{size:10},color:'#888'}},
+        x2:{position:'top',beginAtZero:true,ticks:{stepSize:1,callback:v=>Number.isInteger(v)?v+'건':null,font:{size:10},color:'#888'},grid:{display:false},title:{display:true,text:'건수',font:{size:10},color:'#888'}},
         y:{ticks:{font:{size:11},color:'#444'},grid:{display:false}}
       }
     }
