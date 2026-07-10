@@ -493,13 +493,17 @@ table td,table th{font-variant-numeric:tabular-nums}
       </div>
     </div>
 
-    <!-- 투자 1) 도메인별 투자 건수 차트 -->
+    <!-- 투자 1) 도메인별 투자 건수/금액 차트 -->
     <div class="panel">
       <div class="ph">
         <span class="ph-t" id="chart-title">도메인별 투자 건수</span>
         <div class="leg">
           <div class="li"><div class="lb" style="background:var(--or)"></div>핵심 도메인</div>
           <div class="li"><div class="lb" style="background:#BBBBBB"></div>일반 도메인</div>
+        </div>
+        <div class="seg">
+          <button class="sb on" id="mt-c" onclick="setMetric('c')">건수</button>
+          <button class="sb"    id="mt-a" onclick="setMetric('a')">금액</button>
         </div>
       </div>
       <div class="pb">
@@ -960,6 +964,7 @@ const COLUMN_MAP={
   date:3,      // D열 투자일자
   exitDate:4,  // E열 회수일자
   preValue:5,  // F열 Pre-value
+  earlyFlag:6, // G열 극초기 여부 (기관 최초투자 체크 — Pre-value 기준과 별개로 "여"면 극초기)
   minor:11,    // L열 중분류(도메인)
   amount:13,   // N열 투자금액
   exitAmount:14// O열 회수금액
@@ -1134,7 +1139,7 @@ function renderAll(){
   renderChart(display,totAmt,totCnt,yv);
   renderTable(display,totAmt,totCnt,yv);
   const pStr=(yv==='all'?'전체':yv+'년')+(qv==='all'?'':' Q'+qv),mStr=periodMode==='c'?'누적':'분기 신규';
-  document.getElementById('chart-title').textContent=`${pStr} · ${mStr} · 도메인별 투자 건수`;
+  document.getElementById('chart-title').textContent=`${pStr} · ${mStr} · 도메인별 투자 ${metricMode==='a'?'금액':'건수'}`;
   document.getElementById('tbl-title').textContent=`${pStr} · 도메인별 상세 현황 (${display.length}개)`;
 
   // [추가] 극초기/회수 섹션 렌더 (연도 필터 연동)
@@ -1195,16 +1200,16 @@ function parseNumLoose(str){
   return isNaN(n)?NaN:n;
 }
 
-// [추가] 극초기 투자 집계 (Pre-value 100억 미만)
+// [추가] 극초기 투자 집계 — 기준: Pre-value 100억 미만 "또는" 기관 최초투자(G열 "여" 명시 체크)
 function getEarlyDeals(yearFilter){
   return rawData.filter(r=>{
-    const pv=parseNumLoose(r[COL.preValue]);
-    if(!isFinite(pv)||pv<=0)return false;
-    if(pv>=EARLY_PREVALUE_THRESHOLD)return false;
     const info=qi(r[COL.date]);
     if(!info)return false;
     if(yearFilter&&info.y!==yearFilter)return false;
-    return true;
+    const flagged=String(r[COL.earlyFlag]||'').trim()==='여';
+    const pv=parseNumLoose(r[COL.preValue]);
+    const byPreValue=isFinite(pv)&&pv>0&&pv<EARLY_PREVALUE_THRESHOLD;
+    return flagged||byPreValue;
   });
 }
 
@@ -1463,9 +1468,10 @@ function renderChart(display,totAmt,totCnt,yv){
   wrap.style.display='block';noc.style.display='none';
   wrap.style.height=Math.max(display.length*44+60,200)+'px';
 
-  const sorted=[...display].sort((a,b)=>b[1].cnt-a[1].cnt);
+  const isAmt=metricMode==='a';
+  const sorted=[...display].sort((a,b)=>isAmt?b[1].amt-a[1].amt:b[1].cnt-a[1].cnt);
   const labels=sorted.map(([d])=>(KEY_DOMAINS.has(d)?'★ ':'')+d);
-  const counts=sorted.map(([,s])=>s.cnt);
+  const values=sorted.map(([,s])=>isAmt?+(s.amt/1e8).toFixed(2):s.cnt);
   const colors=sorted.map(([d])=>KEY_DOMAINS.has(d)?'#FF5831':'#BBBBBB');
 
   if(chart){chart.destroy();chart=null;}
@@ -1473,8 +1479,8 @@ function renderChart(display,totAmt,totCnt,yv){
   chart=new Chart(ctx,{
     type:'bar',
     data:{labels,datasets:[{
-      label:'투자 건수',
-      data:counts,
+      label:isAmt?'투자금액(억원)':'투자 건수',
+      data:values,
       backgroundColor:colors,
       borderRadius:4,
       borderWidth:0,
@@ -1511,7 +1517,7 @@ function renderChart(display,totAmt,totCnt,yv){
         }
       },
       scales:{
-        x:{beginAtZero:true,ticks:{stepSize:1,callback:v=>Number.isInteger(v)?v+'건':null,font:{size:10},color:'#888'},grid:{color:'#ECEAE3'}},
+        x:{beginAtZero:true,ticks:{stepSize:isAmt?undefined:1,callback:v=>isAmt?v+'억':(Number.isInteger(v)?v+'건':null),font:{size:10},color:'#888'},grid:{color:'#ECEAE3'}},
         y:{ticks:{font:{size:11},color:'#444'},grid:{display:false}}
       }
     }
