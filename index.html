@@ -58,6 +58,46 @@ body{background:var(--bg);color:var(--black);font-size:14px;line-height:1.6;-web
 .s-txt{font-size:12px;font-weight:500;color:var(--black2)}
 .s-sub{font-size:11px;color:var(--gray)}
 .s-time{font-size:11px;color:var(--gray2);margin-left:auto;font-family:'SUIT Variable',sans-serif}
+/* [14차] 2026 AI 브리핑 */
+.briefing{background:var(--sf);border:1px solid var(--sf2);border-radius:var(--r);padding:16px 18px;margin-bottom:16px}
+.brief-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.brief-tag{flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.5px;color:#fff;background:#111;border-radius:6px;padding:4px 8px;line-height:1.4;margin-top:1px}
+.brief-headline{flex:1 1 240px;font-size:15px;font-weight:600;color:var(--black);letter-spacing:-.3px;line-height:1.45}
+.brief-legend{flex-shrink:0;display:flex;gap:12px;align-items:center;margin-top:2px}
+.brief-legend .lg{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--gray);white-space:nowrap}
+.brief-legend .lg::before{content:'';width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.brief-legend .lg.green::before{background:var(--ok)}
+.brief-legend .lg.yellow::before{background:var(--or)}
+.brief-legend .lg.red::before{background:var(--bad)}
+@media(max-width:600px){.brief-legend{width:100%;margin-top:4px}}
+.brief-headline.loading{color:var(--gray2);font-weight:500}
+.brief-lights{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.bl-cell{border:1px solid var(--sf2);border-left-width:4px;border-radius:8px;padding:10px 12px;background:var(--bg)}
+.bl-cell.green{border-left-color:var(--ok)}
+.bl-cell.yellow{border-left-color:var(--or)}
+.bl-cell.red{border-left-color:var(--bad)}
+.bl-cell.off{opacity:.45}
+.bl-top{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.bl-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.bl-cell.green .bl-dot{background:var(--ok)}
+.bl-cell.yellow .bl-dot{background:var(--or)}
+.bl-cell.red .bl-dot{background:var(--bad)}
+.bl-label{font-size:11px;font-weight:600;color:var(--black2)}
+.bl-val{font-size:20px;font-weight:700;color:var(--black);letter-spacing:-.5px}
+.bl-unit{font-size:12px;font-weight:500;color:var(--gray);margin-left:2px}
+.bl-sub{font-size:11px;color:var(--gray);margin-top:3px}
+.brief-insight{margin-top:14px;padding-top:14px;border-top:1px solid var(--sf2)}
+.brief-row{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.5}
+.brief-row+.brief-row{margin-top:8px}
+.brief-ico{flex-shrink:0;font-size:10px;font-weight:700;color:var(--black2);background:var(--sf2);border-radius:5px;padding:3px 7px;line-height:1.5;margin-top:1px}
+.brief-ico-prop{color:#fff;background:var(--or)}
+.brief-diag span:last-child{color:var(--black2)}
+.brief-prop ul{margin:0;padding-left:16px}
+.brief-prop li{color:var(--black);margin-bottom:3px}
+.brief-prop li:last-child{margin-bottom:0}
+.brief-note{margin-top:10px;font-size:11px;color:var(--gray2)}
+@media(max-width:960px){.brief-lights{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.brief-lights{grid-template-columns:1fr}}
 .goal-banner{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
 @media(max-width:960px){.goal-banner{grid-template-columns:repeat(2,1fr)!important}}
 @media(max-width:600px){.goal-banner{grid-template-columns:1fr!important}}
@@ -410,6 +450,25 @@ table td,table th{font-variant-numeric:tabular-nums}
 <!-- ====================== 투자팀 ====================== -->
 <div id="team-invest" class="team-section">
 
+<!-- [14차] 2026 AI 브리핑 — 2026 연도 선택 시에만 표시. 숫자·신호등=코드, 문장=AI -->
+<div id="briefing" class="briefing" hidden>
+  <div class="brief-head">
+    <span class="brief-tag">2026 브리핑</span>
+    <span class="brief-headline" id="brief-headline"></span>
+    <span class="brief-legend" aria-label="신호등 색상 의미">
+      <span class="lg green">순조</span>
+      <span class="lg yellow">주의</span>
+      <span class="lg red">시급</span>
+    </span>
+  </div>
+  <div class="brief-lights" id="brief-lights"></div>
+  <div class="brief-insight" id="brief-insight" hidden>
+    <div class="brief-row brief-diag"><span class="brief-ico">진단</span><span id="brief-diag-txt"></span></div>
+    <div class="brief-row brief-prop"><span class="brief-ico brief-ico-prop">제안</span><ul id="brief-prop-list"></ul></div>
+  </div>
+  <div class="brief-note" id="brief-note" hidden></div>
+</div>
+
 <div class="goal-banner">
   <!-- ① 목표 도메인 집중도 -->
   <div class="goal-box g1" id="goal-focus-box">
@@ -536,7 +595,7 @@ table td,table th{font-variant-numeric:tabular-nums}
     <!-- 투자 2) 극초기 투자 실적 -->
     <div class="panel">
       <div class="ph">
-        <span class="ph-t">극초기 투자 실적 (Pre-value 100억원 미만)</span>
+        <span class="ph-t">극초기 투자 실적 (Pre-100억 미만 또는 기관 최초투자)</span>
         <span style="font-size:11px;color:var(--gray)">2026년 목표 50억원 · 단위: 억원</span>
       </div>
       <div class="pb">
@@ -566,15 +625,15 @@ table td,table th{font-variant-numeric:tabular-nums}
     <!-- 투자 2-상세) 극초기 상세 테이블 (아코디언) -->
     <div class="panel collapsible collapsed" id="panel-early">
       <div class="ph" onclick="togglePanel('panel-early')">
-        <span class="ph-t" id="early-tbl-title">극초기 투자 상세<span class="ph-chev">▼</span></span>
-        <span style="font-size:11px;color:var(--gray)">Pre-value 100억원 미만 투자 건</span>
+        <span class="ph-t" id="early-tbl-title">극초기 투자 상세 (Pre-100억 미만 또는 기관 최초 투자)<span class="ph-chev">▼</span></span>
+        <span style="font-size:11px;color:var(--gray)">Pre-100억 미만 또는 기관 최초투자 건</span>
       </div>
       <div class="panel-body">
         <div class="tw">
           <table>
             <thead><tr>
               <th class="tl">기업명</th><th class="tl">도메인</th>
-              <th>Pre-value (억원)</th><th>투자금액 (억원)</th><th class="tc">투자일자</th>
+              <th>Pre-value (억원)</th><th>투자금액 (억원)</th><th class="tc">의결일자</th>
             </tr></thead>
             <tbody id="early-tbl-body"></tbody>
           </table>
@@ -965,12 +1024,12 @@ const COLUMN_MAP={
   earlyFlag:6, // G열 극초기 여부 (기관 최초투자 체크 — Pre-value 기준과 별개로 "여"면 극초기)
   minor:11,    // L열 중분류(도메인)
   amount:13,   // N열 투자금액
-  exitAmount:14// O열 회수금액
+  exitAmount:14,// O열 회수금액
+  resolutionDate:15 // P열 의결일자 (D열 투자일자가 "납입전" 등 날짜가 아닐 때 대체용)
 };
 // 기존 코드가 COL.* 로 참조하므로 동일 별칭 유지
 const COL=COLUMN_MAP;
 // [추가] 극초기 기준 및 목표
-const EARLY_PREVALUE_THRESHOLD=10000000000; // 100억원(원 단위)
 const EARLY_TARGET_EOK_2026=50; // 2026년 극초기 목표 50억원
 // [추가] 연도별 회수 목표 (단위: 억원)
 const EXIT_TARGETS_EOK={2026:12.6,2027:22.7,2028:36.5,2029:55.7,2030:45.4};
@@ -1015,7 +1074,9 @@ async function fetchData(){
     rawData=rows.slice(1).filter(r=>{
       const hasDate=(r[COL.date]||'').trim().length>=4;
       const hasExitDate=(r[COL.exitDate]||'').trim().length>=4;
-      return hasDate||hasExitDate;
+      // [추가] 투자일자가 "납입전" 등 날짜가 아니어도 의결일자가 있으면 로드 대상에 포함
+      const hasResolutionDate=(r[COL.resolutionDate]||'').trim().length>=4;
+      return hasDate||hasExitDate||hasResolutionDate;
     });
     populateYears();renderAll();
     setStat('ok',`${rawData.length.toLocaleString()}건 로드 완료`,'K열 중분류 · M열 투자금액');
@@ -1065,12 +1126,20 @@ function setStat(type,txt,sub){
   console.log(`[${type}] ${txt}`+(sub?` · ${sub}`:''));
 }
 function populateYears(){
-  const years=[...new Set(rawData.map(r=>qi(r[COL.date])?.y).filter(Boolean))].sort((a,b)=>b-a);
+  const years=[...new Set(rawData.map(r=>qi(effDate(r))?.y).filter(Boolean))].sort((a,b)=>b-a);
   const sel=document.getElementById('f-year');const cur=sel.value;
   sel.innerHTML='<option value="all">전체 연도</option>'+years.map(y=>`<option value="${y}">${y}년</option>`).join('');
   if(years.includes(+cur))sel.value=cur;else if(years.length)sel.value=String(years[0]);
 }
 function qi(str){if(!str)return null;const d=new Date(str.trim());if(isNaN(d))return null;return{y:d.getFullYear(),q:Math.ceil((d.getMonth()+1)/3)};}
+// [수정] 투자현황/극초기상세 기준일자 — 과거(2025년 이전)는 투자일자(D열), 2026년부터는 의결일자(P열) 기준
+function effDate(r){
+  const investRaw=(r[COL.date]||'').trim();
+  const investInfo=qi(investRaw);
+  if(investInfo&&investInfo.y<2026)return investRaw;
+  const res=(r[COL.resolutionDate]||'').trim();
+  return qi(res)?res:investRaw;
+}
 function parseAmt(str){return str?parseInt(String(str).replace(/[,\s]/g,''))||0:0;}
 function pct(v,tot){return tot?Math.round(v/tot*1000)/10:0;}
 function achRate(actual,tgt){return tgt?Math.round(actual/tgt*1000)/10:null;}
@@ -1085,7 +1154,7 @@ function getFiltered(){
   const yv=document.getElementById('f-year').value,qv=document.getElementById('f-q').value;
   const y=yv==='all'?null:+yv,q=qv==='all'?null:+qv;
   return rawData.filter(r=>{
-    const info=qi(r[COL.date]);if(!info)return false;
+    const info=qi(effDate(r));if(!info)return false;
     if(y&&info.y!==y)return false;
     if(periodMode==='q'){if(q&&info.q!==q)return false;}
     else{if(q&&info.q>q)return false;}
@@ -1096,7 +1165,7 @@ function getCardFiltered(){
   const yv=document.getElementById('f-year').value;
   const y=yv==='all'?null:+yv;
   return rawData.filter(r=>{
-    const info=qi(r[COL.date]);if(!info)return false;
+    const info=qi(effDate(r));if(!info)return false;
     if(y&&info.y!==y)return false;
     return true;
   });
@@ -1154,6 +1223,10 @@ function renderAll(){
   // 회수 컬럼: 회수 목표 활성 시 활성
   const exitActive=g.recovery!=null;
   setColDisabled('col-exit',!exitActive);
+
+  // [14차] 2026 브리핑 갱신 (2026 선택 시에만 표시)
+  // 방어: 브리핑에서 오류가 나도 대시보드 전체 렌더가 멈추지 않도록 격리
+  try{renderBriefing(yv);}catch(e){console.warn('[briefing] 렌더 오류(무시하고 진행):',e);}
 }
 
 // [5차 재작성] 상단 목표 배너 — YEARLY_GOALS 기반, 비활성 처리 포함
@@ -1198,16 +1271,13 @@ function parseNumLoose(str){
   return isNaN(n)?NaN:n;
 }
 
-// [추가] 극초기 투자 집계 — 기준: Pre-value 100억 미만 "또는" 기관 최초투자(G열 "여" 명시 체크)
+// [수정] 극초기 투자 집계 — 기준: G열 "극초기 여부"가 "여"인 건만
 function getEarlyDeals(yearFilter){
   return rawData.filter(r=>{
-    const info=qi(r[COL.date]);
+    const info=qi(effDate(r));
     if(!info)return false;
     if(yearFilter&&info.y!==yearFilter)return false;
-    const flagged=String(r[COL.earlyFlag]||'').trim()==='여';
-    const pv=parseNumLoose(r[COL.preValue]);
-    const byPreValue=isFinite(pv)&&pv>0&&pv<EARLY_PREVALUE_THRESHOLD;
-    return flagged||byPreValue;
+    return String(r[COL.earlyFlag]||'').trim()==='여';
   });
 }
 
@@ -1236,7 +1306,7 @@ function renderEarlySection(yv){
     earlyKpiPct.textContent=r.toFixed(1)+'%';
     earlyKpiBar.style.width=Math.min(r,100)+'%';
     earlyKpiBar.style.background=r>=100?'var(--ok)':r>=80?'var(--or)':'var(--bad)';
-    earlyKpiSub.textContent=`Pre-value 100억 미만 · ${deals.length}건`;
+    earlyKpiSub.textContent=`Pre-100억 미만 또는 기관 최초투자 · ${deals.length}건`;
   }else{
     earlyKpiEl.textContent='—';
     earlyKpiPct.textContent='—';
@@ -1267,13 +1337,13 @@ function renderEarlySection(yv){
 
   // 상세 테이블 렌더 — 항상 선택 연도 기준 (연도 '전체'면 전체)
   const tbody=document.getElementById('early-tbl-body');
-  document.getElementById('early-tbl-title').textContent=`극초기 투자 상세 (${deals.length}건)`;
+  document.getElementById('early-tbl-title').innerHTML=`극초기 투자 상세 (Pre-100억 미만 또는 기관 최초 투자) · ${deals.length}건<span class="ph-chev">▼</span>`;
   if(!deals.length){
     tbody.innerHTML='<tr><td colspan="5" class="empty-state">해당 기간 극초기 투자 없음</td></tr>';
     return;
   }
   const sortedDeals=[...deals].sort((a,b)=>{
-    const da=new Date((a[COL.date]||'').trim()),db=new Date((b[COL.date]||'').trim());
+    const da=new Date(effDate(a)),db=new Date(effDate(b));
     return (isNaN(db)?0:db.getTime())-(isNaN(da)?0:da.getTime());
   });
   tbody.innerHTML=sortedDeals.map(r=>{
@@ -1281,7 +1351,7 @@ function renderEarlySection(yv){
     const domain=(r[COL.minor]||'미분류').trim();
     const pvEok=parseNumLoose(r[COL.preValue])/1e8;
     const amtEok=parseAmt(r[COL.amount])/1e8;
-    const date=(r[COL.date]||'').trim();
+    const date=effDate(r);
     return `<tr>
       <td class="tl" style="font-weight:600">${company}</td>
       <td class="tl">${domain}</td>
@@ -1457,6 +1527,162 @@ function renderCards(sorted,totAmt,totCnt,yv){
   document.getElementById('conc-bar').style.background=concActual>=CONC_TARGET?'var(--ok)':concActual>=CONC_TARGET*0.8?'var(--or)':'var(--bad)';
   document.getElementById('conc-actual-l').textContent='실적 '+concActual.toFixed(1)+'%';
   document.getElementById('c-conc-s').textContent='달성률 '+(concRate?.toFixed(1)||'—')+'%';
+}
+
+// ============================================================
+// [14차] 2026 AI 브리핑
+//  - 숫자·신호등: 여기서 계산 (카드와 동일 공식). AI는 문장만 담당.
+//  - AI 실패/미설정 시: 신호등·숫자만 표시하고 문장은 비운다.
+// ============================================================
+
+// 2026 연중 경과율 (페이스 판단 기준, 목표 기한=12월 말)
+function yearElapsed(year){
+  const now=new Date();
+  const start=new Date(year,0,1), end=new Date(year+1,0,1);
+  if(now<=start)return {pct:0,daysLeft:Math.round((end-start)/864e5)};
+  if(now>=end)return {pct:100,daysLeft:0};
+  return {pct:(now-start)/(end-start)*100, daysLeft:Math.ceil((end-now)/864e5)};
+}
+
+// 신호등 판정
+function lightRatio(actual,target){ // 집중도(비중): 목표치 대비
+  if(target<=0)return 'green';
+  const r=actual/target;
+  return r>=1?'green':r>=0.85?'yellow':'red';
+}
+function lightFlow(rate,pacePct){ // 극초기·회수(누적): 달성률 vs 경과율
+  if(pacePct<=0)return rate>=100?'green':'yellow';
+  const ratio=rate/pacePct;
+  return ratio>=0.9?'green':ratio>=0.6?'yellow':'red';
+}
+function lightCeiling(rate){ // 투자한도: 소진율
+  return rate>100?'red':rate>=90?'yellow':'green';
+}
+
+// 4개 KPI를 2026 기준으로 계산 (기존 카드와 완전히 동일한 공식·데이터 사용)
+function computeBriefing2026(){
+  const YEAR=2026;
+  const cardData=rawData.filter(r=>{const i=qi(effDate(r));return i&&i.y===YEAR;});
+  const {sorted,totAmt,totCnt}=calcStats(cardData);
+
+  const keyCnt=sorted.filter(([d])=>KEY_DOMAINS.has(d)).reduce((s,[,v])=>s+v.cnt,0);
+  const concActual=totCnt?keyCnt/totCnt*100:0;
+  const concTarget=CONC_TARGET;
+  const concRate=concTarget?concActual/concTarget*100:0;
+
+  const earlyDeals=getEarlyDeals(YEAR);
+  const earlyEok=earlyDeals.reduce((s,r)=>s+parseAmt(r[COL.amount]),0)/1e8;
+  const earlyTarget=EARLY_TARGET_EOK_2026;
+  const earlyRate=earlyTarget?earlyEok/earlyTarget*100:0;
+
+  const {byYear,deals}=calcExitByYear();
+  const exitEok=(byYear[YEAR]||0)/1e8;
+  const exitTarget=EXIT_TARGETS_EOK[YEAR];
+  const exitRate=exitTarget?exitEok/exitTarget*100:0;
+  const exitCount=deals.filter(d=>d.year===YEAR).length;
+
+  const budgetUsed=totAmt/1e8;
+  const budgetLimit=(YEARLY_GOALS[YEAR]&&YEARLY_GOALS[YEAR].investLimit)||250;
+  const budgetRate=budgetLimit?budgetUsed/budgetLimit*100:0;
+
+  const pace=yearElapsed(YEAR);
+  return {concActual,concTarget,concRate,earlyEok,earlyTarget,earlyRate,
+    exitEok,exitTarget,exitRate,exitCount,budgetUsed,budgetLimit,budgetRate,pace};
+}
+
+function renderBriefing(yv){
+  const box=document.getElementById('briefing');
+  if(!box)return;
+  if(yv!=='2026'){box.hidden=true;return;} // 2026 선택 시에만
+  box.hidden=false;
+  if(!rawData.length)return;
+
+  const m=computeBriefing2026();
+  const lights={
+    conc:lightRatio(m.concActual,m.concTarget),
+    early:lightFlow(m.earlyRate,m.pace.pct),
+    exit:lightFlow(m.exitRate,m.pace.pct),
+    budget:lightCeiling(m.budgetRate),
+  };
+  const cells=[
+    {light:lights.conc,  label:'도메인 집중도', val:m.concActual.toFixed(1), unit:'%',      sub:`목표 ${m.concTarget}%`},
+    {light:lights.early, label:'극초기 투자',   val:m.earlyEok.toFixed(1),   unit:'억',     sub:`목표 ${m.earlyTarget}억 · ${m.earlyRate.toFixed(0)}%`},
+    {light:lights.exit,  label:'회수',          val:m.exitEok.toFixed(1),    unit:'억',     sub:`목표 ${m.exitTarget}억 · ${m.exitRate.toFixed(0)}%`},
+    {light:lights.budget,label:'투자한도',      val:m.budgetRate.toFixed(0), unit:'% 소진', sub:`여유 ${Math.max(m.budgetLimit-m.budgetUsed,0).toFixed(0)}억`},
+  ];
+  document.getElementById('brief-lights').innerHTML=cells.map(c=>`
+    <div class="bl-cell ${c.light}">
+      <div class="bl-top"><span class="bl-dot"></span><span class="bl-label">${c.label}</span></div>
+      <div class="bl-val">${c.val}<span class="bl-unit">${c.unit}</span></div>
+      <div class="bl-sub">${c.sub}</div>
+    </div>`).join('');
+
+  fetchBriefingText(buildAiMetrics(m,lights));
+}
+
+// 서버(AI)에 넘길 숫자 묶음 — 값은 반올림만, 절대 바꾸지 않음
+function buildAiMetrics(m,lights){
+  const d=new Date();
+  const asOf=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const r1=x=>Math.round(x*10)/10;
+  return {
+    asOf, elapsedPct:r1(m.pace.pct), daysLeft:m.pace.daysLeft,
+    kpis:{
+      concentration:{label:'도메인 집중도',   actual:r1(m.concActual), target:m.concTarget,  unit:'%',   rate:r1(m.concRate),   kind:'ratio',   light:lights.conc},
+      early:        {label:'극초기 투자금액', actual:r1(m.earlyEok),   target:m.earlyTarget, unit:'억원', rate:r1(m.earlyRate),  kind:'flow',    light:lights.early},
+      exit:         {label:'회수금액',        actual:r1(m.exitEok),    target:m.exitTarget,  unit:'억원', rate:r1(m.exitRate),   kind:'flow',    light:lights.exit, count:m.exitCount},
+      budget:       {label:'투자한도 소진',   used:r1(m.budgetUsed),   limit:m.budgetLimit,  unit:'억원', rate:r1(m.budgetRate), kind:'ceiling', light:lights.budget},
+    }
+  };
+}
+
+function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+// AI 문장: 하루 1회 + 숫자 서명 기준 캐시. 실패 시 신호등·숫자만.
+function fetchBriefingText(payload){
+  const headlineEl=document.getElementById('brief-headline');
+  const sig=JSON.stringify(payload.kpis)+'|'+payload.asOf;
+  const cacheKey='brief-ai-'+payload.asOf;
+  try{
+    const cached=JSON.parse(localStorage.getItem(cacheKey)||'null');
+    if(cached&&cached.sig===sig&&cached.data){applyBriefingText(cached.data);return;}
+  }catch(e){}
+
+  headlineEl.className='brief-headline loading';
+  headlineEl.textContent='진척 현황을 분석하고 있습니다…';
+  document.getElementById('brief-insight').hidden=true;
+  document.getElementById('brief-note').hidden=true;
+
+  fetch('/api/briefing',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({metrics:payload})})
+    .then(r=>r.json())
+    .then(res=>{
+      if(!res||!res.ok||!res.data)throw new Error((res&&res.error)||'AI 응답 오류');
+      applyBriefingText(res.data);
+      try{localStorage.setItem(cacheKey,JSON.stringify({sig,data:res.data}));}catch(e){}
+    })
+    .catch(err=>{
+      headlineEl.className='brief-headline';
+      headlineEl.textContent='';
+      document.getElementById('brief-insight').hidden=true;
+      const note=document.getElementById('brief-note');
+      note.hidden=false;
+      note.textContent='AI 브리핑을 불러오지 못해 신호등·숫자만 표시합니다.';
+      console.warn('[briefing] AI 실패:',err);
+    });
+}
+
+function applyBriefingText(data){
+  const headlineEl=document.getElementById('brief-headline');
+  headlineEl.className='brief-headline';
+  headlineEl.textContent=data.headline||'';
+  const diag=(data.diagnosis||'').trim();
+  const props=Array.isArray(data.proposals)?data.proposals.filter(p=>String(p).trim()):[];
+  document.getElementById('brief-diag-txt').textContent=diag;
+  document.getElementById('brief-prop-list').innerHTML=props.map(p=>`<li>${escapeHtml(p)}</li>`).join('');
+  document.querySelector('.brief-diag').style.display=diag?'':'none';
+  document.querySelector('.brief-prop').style.display=props.length?'':'none';
+  document.getElementById('brief-insight').hidden=!(diag||props.length);
+  document.getElementById('brief-note').hidden=true;
 }
 
 // [수정2] renderChart — 기업명 툴팁 추가

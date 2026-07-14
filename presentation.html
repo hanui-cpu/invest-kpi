@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI공모전 발표 — dcamp 투자 KPI 대시보드</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* dcamp 브랜드 — 라이트 톤 */
+    --bg:      #FFFFFF;
+    --bg2:     #F7F7F5;
+    --card:    #FFFFFF;
+    --border:  #E4E4DC;
+    --border2: #D0D0C6;
+    --or:      #FF5A14;   /* dcamp 시그니처 오렌지 */
+    --or2:     #FF7A3D;
+    --or-bg:   #FFF3EE;
+    --text:    #111111;
+    --sub:     #444444;
+    --muted:   #888880;
+    --green:   #1D9A5F;
+    --green-bg:#EDFAF4;
+    --slide-w: 1280px;
+    --slide-h: 720px;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif;
+    background: #EBEBEB;
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  #deck {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .slide {
+    display: none;
+    width: var(--slide-w); height: var(--slide-h);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+    box-shadow: 0 8px 40px rgba(0,0,0,.10);
+  }
+  .slide.active { display: flex; }
+  .slide.active { animation: fadeUp .28s ease; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* 슬라이드 공통 내부 */
+  .slide-inner {
+    position: relative; z-index: 1;
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    padding: 52px 68px;
+  }
+
+  /* 좌측 오렌지 세로줄 — 표지 제외 */
+  .slide:not(#s0)::after {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 5px;
+    background: var(--or);
+    border-radius: 12px 0 0 12px;
+  }
+
+  /* 우측 상단 장식 도트 */
+  .slide::before {
+    content: '';
+    position: absolute;
+    width: 320px; height: 320px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,90,20,.06) 0%, transparent 70%);
+    top: -80px; right: -80px;
+    pointer-events: none;
+  }
+
+  .slide-num {
+    position: absolute;
+    bottom: 24px; right: 32px;
+    font-size: 12px; color: var(--muted);
+    letter-spacing: .04em; font-weight: 500;
+  }
+
+  /* ── 태그 칩 ── */
+  .tag {
+    display: inline-flex; align-items: center;
+    background: var(--or-bg);
+    color: var(--or);
+    border: 1px solid rgba(255,90,20,.25);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 12px; font-weight: 700;
+    letter-spacing: .08em;
+    margin-bottom: 16px;
+    width: fit-content;
+    text-transform: uppercase;
+  }
+
+  /* ── 헤딩 ── */
+  .slide-title {
+    font-size: 52px; font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -.025em;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+  .slide-title em { color: var(--or); font-style: normal; }
+
+  .slide-sub {
+    font-size: 17px; color: var(--sub);
+    font-weight: 400; line-height: 1.65;
+    max-width: 600px;
+  }
+
+  .h2 {
+    font-size: 34px; font-weight: 800;
+    letter-spacing: -.025em;
+    margin-bottom: 6px;
+    line-height: 1.2;
+    color: var(--text);
+  }
+  .h2 em { color: var(--or); font-style: normal; }
+
+  .section-label {
+    font-size: 11px; font-weight: 700;
+    color: var(--or); letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .body-text {
+    font-size: 16px; color: var(--sub);
+    line-height: 1.75;
+  }
+
+  /* ── 카드 ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 26px;
+  }
+  .card-or {
+    background: var(--or-bg);
+    border: 1px solid rgba(255,90,20,.2);
+    border-radius: 10px;
+    padding: 22px 26px;
+  }
+
+  /* ── 그리드 ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: start; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; align-items: start; }
+
+  /* ── 숫자 강조 ── */
+  .big-num {
+    font-size: 40px; font-weight: 800;
+    color: var(--or);
+    letter-spacing: -.03em;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .big-label { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .big-desc  { font-size: 13px; color: var(--sub);   font-weight: 600; margin-top: 6px; }
+
+  /* ── 스텝 ── */
+  .step-num {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--or);
+    color: #fff;
+    font-size: 14px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-row { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px; }
+  .step-title { font-size: 15px; font-weight: 700; margin-bottom: 3px; color: var(--text); }
+  .step-desc  { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  /* ── 하이라이트 박스 ── */
+  .highlight {
+    background: var(--or-bg);
+    border: 1px solid rgba(255,90,20,.22);
+    border-left: 3px solid var(--or);
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 15px;
+    color: var(--sub);
+    line-height: 1.7;
+  }
+  .highlight-green {
+    background: var(--green-bg);
+    border: 1px solid rgba(29,154,95,.2);
+    border-left: 3px solid var(--green);
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-size: 14px;
+    color: var(--sub);
+    line-height: 1.7;
+  }
+
+  /* ── 배지 ── */
+  .badge {
+    display: inline-block;
+    background: #F0F0EC;
+    border: 1px solid var(--border2);
+    color: var(--sub);
+    border-radius: 5px;
+    padding: 3px 9px;
+    font-size: 12px; font-weight: 600;
+    margin-right: 5px; margin-bottom: 5px;
+  }
+  .badge.or  { background: var(--or-bg); border-color: rgba(255,90,20,.3); color: var(--or); }
+  .badge.grn { background: var(--green-bg); border-color: rgba(29,154,95,.3); color: var(--green); }
+
+  /* ── 흐름 화살표 ── */
+  .flow { display: flex; align-items: stretch; gap: 0; }
+  .flow-item {
+    flex: 1;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 14px;
+    text-align: center;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .fi-icon  { font-size: 24px; margin-bottom: 8px; }
+  .fi-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; color: var(--text); }
+  .fi-desc  { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .flow-arrow {
+    font-size: 18px; color: var(--or);
+    padding: 0 8px;
+    display: flex; align-items: center; flex-shrink: 0;
+    font-weight: 700;
+  }
+
+  /* ── KPI 미니 게이지 ── */
+  .kpi-mini { display: flex; flex-direction: column; gap: 3px; }
+  .km-label { font-size: 11px; color: var(--muted); }
+  .km-val   { font-size: 24px; font-weight: 800; color: var(--or); letter-spacing: -.02em; }
+  .km-bar   { height: 5px; background: var(--border); border-radius: 4px; margin-top: 5px; overflow: hidden; }
+  .km-fill  { height: 100%; border-radius: 4px; background: var(--or); }
+
+  /* ── 구분선 ── */
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  /* ── 체크리스트 ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 14px; line-height: 1.55; color: var(--sub);
+  }
+  .checklist li::before {
+    content: '✓';
+    color: var(--green);
+    font-weight: 800; font-size: 13px;
+    flex-shrink: 0; margin-top: 1px;
+    background: var(--green-bg);
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── 타임라인 ── */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .tl-item  { display: flex; gap: 16px; padding-bottom: 16px; position: relative; }
+  .tl-item::before {
+    content: '';
+    position: absolute;
+    left: 12px; top: 28px;
+    width: 2px; bottom: 0;
+    background: var(--border);
+  }
+  .tl-item:last-child::before { display: none; }
+  .tl-dot {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--or-bg);
+    border: 2px solid var(--or);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+  }
+  .tl-title { font-size: 14px; font-weight: 700; margin-bottom: 2px; color: var(--text); }
+  .tl-desc  { font-size: 12px; color: var(--muted); line-height: 1.55; }
+
+  /* ── 네비게이션 ── */
+  #nav {
+    position: fixed; bottom: 28px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(255,255,255,.95);
+    border: 1px solid var(--border);
+    border-radius: 40px;
+    padding: 8px 20px;
+    backdrop-filter: blur(8px);
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(0,0,0,.1);
+  }
+  #nav button {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 18px;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, color .15s;
+  }
+  #nav button:hover { background: var(--or-bg); color: var(--or); }
+  #nav button:disabled { opacity: .3; cursor: default; }
+  #nav button:disabled:hover { background: none; color: var(--muted); }
+  #slide-counter { font-size: 13px; color: var(--muted); min-width: 52px; text-align: center; font-weight: 600; }
+
+  /* ── dcamp 로고 SVG형 ── */
+  .dcamp-logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-size: 16px; font-weight: 900;
+    color: var(--text);
+    letter-spacing: -.01em;
+  }
+  .dcamp-logo .logo-box {
+    width: 34px; height: 34px;
+    background: var(--or);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+    font-size: 20px; font-weight: 900;
+    letter-spacing: -.03em;
+    line-height: 1;
+  }
+
+  /* ── 표지 전용 ── */
+  #s0 {
+    background: linear-gradient(145deg, #FFF8F5 0%, #FFFFFF 60%, #FFF3EE 100%);
+  }
+  #s0::after { display: none; }
+  #s0 .slide-inner { justify-content: center; padding-left: 80px; }
+  #s0 .slide-title { font-size: 58px; }
+  #s0::before {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(255,90,20,.08) 0%, transparent 70%);
+    top: -120px; right: -100px;
+  }
+  /* 표지 우측 장식 블록 */
+  #s0 .cover-deco {
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 360px;
+    background: var(--or);
+    clip-path: polygon(15% 0%, 100% 0%, 100% 100%, 0% 100%);
+    display: flex; flex-direction: column; align-items: flex-end;
+    justify-content: flex-end;
+    padding: 40px 40px 48px;
+  }
+  #s0 .cover-deco-label {
+    color: rgba(255,255,255,.7);
+    font-size: 12px; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  #s0 .cover-deco-name {
+    color: #fff;
+    font-size: 20px; font-weight: 800;
+    line-height: 1.4;
+    text-align: right;
+  }
+  #s0 .cover-meta {
+    display: flex; align-items: center; gap: 16px;
+    margin-top: 32px; flex-wrap: wrap;
+  }
+  #s0 .cover-meta .sep { color: var(--border2); }
+
+  /* ── 마지막 슬라이드 ── */
+  #s8 {
+    background: linear-gradient(145deg, #FFF8F5 0%, #FFFFFF 60%, #FFF3EE 100%);
+  }
+  #s8::after { display: none; }
+  #s8 .slide-inner { align-items: center; justify-content: center; text-align: center; }
+  #s8 .slide-title { font-size: 54px; }
+</style>
+</head>
+<body>
+
+<div id="deck">
+
+  <!-- ══════════════════════ SLIDE 0: 표지 ══════════════════════ -->
+  <div class="slide active" id="s0">
+    <div class="cover-deco">
+      <div class="cover-deco-label">발표자</div>
+      <div class="cover-deco-name">투자전략팀<br>김하늬</div>
+    </div>
+    <div class="slide-inner">
+      <div class="dcamp-logo" style="margin-bottom:36px;">
+        <div class="logo-box">d</div>
+        dcamp
+      </div>
+      <div class="tag">AI 활용 공모전</div>
+      <div class="slide-title">
+        Claude로 만든<br><em>투자 KPI 대시보드</em>
+      </div>
+      <div class="slide-sub" style="margin-top:14px;">
+        코드 한 줄 몰라도 됩니다 —<br>
+        비개발자가 AI와 함께 실무 데이터 툴을 직접 만든 이야기
+      </div>
+      <div class="cover-meta">
+        <span style="font-size:14px; color:var(--muted);">dcamp</span>
+        <span class="sep">·</span>
+        <span style="font-size:14px; color:var(--muted);">2026</span>
+      </div>
+    </div>
+    <span class="slide-num">1 / 9</span>
+  </div>
+
+  <!-- ══════════════════════ SLIDE 1: 배경 ══════════════════════ -->
+  <div class="slide" id="s1">
+    <div class="slide-inner">
+      <div class="tag">배경 · WHY</div>
+      <div class="h2" style="margin-bottom:6px;">투자전략팀의 역할 —<br><em>KPI를 실시간으로 한눈에</em></div>
+      <div class="body-text" style="margin-bottom:22px; font-size:15px;">
+        투자전략팀은 투자실 전체의 성과를 데이터로 정리하고, 의사결정을 지원하는 팀입니다.<br>
+        그런데 핵심 KPI 수치를 꺼내는 일이 생각보다 힘들었습니다.
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="timeline">
+            <div class="tl-item">
+              <div class="tl-dot">①</div>
+              <div class="tl-content">
+                <div class="tl-title">구글 시트에 묻혀 있는 숫자들</div>
+                <div class="tl-desc">수백 행의 투자 데이터 — 연도별·분기별 실적이 한눈에 보이지 않음</div>
+              </div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-dot">②</div>
+              <div class="tl-content">
+                <div class="tl-title">보고할 때마다 수작업 정리</div>
+                <div class="tl-desc">투자목표금액, 회수목표금액 진척도를 매번 수식으로 계산하고 차트를 새로 그림</div>
+              </div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-dot">③</div>
+              <div class="tl-content">
+                <div class="tl-title">개발 리소스 없음</div>
+                <div class="tl-desc">외부 의뢰 시 수백만 원 + 수개월 — 현실적으로 불가능</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div class="card-or" style="padding:22px 24px;">
+            <div class="section-label" style="margin-bottom:10px;">투자전략팀이 원한 것</div>
+            <ul class="checklist">
+              <li><strong>투자팀 KPI</strong> — 도메인 집중도, 극초기 투자 달성률</li>
+              <li><strong>올해 투자목표금액</strong> 대비 실시간 진척도</li>
+              <li><strong>회수목표금액</strong> 5개년 모니터링</li>
+              <li>보고 때 클릭 한 번으로 <strong>PDF/PPT 출력</strong></li>
+            </ul>
+          </div>
+          <div class="highlight">
+            💡 <strong>해결책</strong><br>
+            "Claude(AI)에게 말로 설명해서 직접 만들어보자"
+          </div>
+        </div>
+      </div>
+    </div>
+    <span class="slide-num">2 / 9</span>
+  </div>
+
+  <!-- ══════════════════════ SLIDE 2: 제작 방법 ══════════════════════ -->
+  <div class="slide" id="s2">
+    <div class="slide-inner">
+      <div class="tag">제작 방법</div>
+      <div class="h2" style="margin-bottom:6px;">Claude Code와 함께 — <em>바이브코딩</em></div>
+      <div class="body-text" style="margin-bottom:24px; font-size:14px;">
+        "바이브코딩" — AI에게 원하는 것을 말로 설명하면 코드를 대신 만들어주는 방식. 코딩 지식 불필요.
+      </div>
+
+      <div class="flow" style="margin-bottom:24px;">
+        <div class="flow-item">
+          <div class="fi-icon">💬</div>
+          <div class="fi-title">말로 요청</div>
+          <div class="fi-desc">원하는 기능을<br>한국어로 설명</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item">
+          <div class="fi-icon">🤖</div>
+          <div class="fi-title">Claude 작성</div>
+          <div class="fi-desc">맥락 이해 후<br>코드 생성</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item">
+          <div class="fi-icon">👀</div>
+          <div class="fi-title">결과 확인</div>
+          <div class="fi-desc">브라우저에서<br>즉시 확인</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item">
+          <div class="fi-icon">🔁</div>
+          <div class="fi-title">대화로 수정</div>
+          <div class="fi-desc">안 맞으면 다시<br>말로 요청</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item">
+          <div class="fi-icon">🚀</div>
+          <div class="fi-title">배포</div>
+          <div class="fi-desc">GitHub + Vercel로<br>URL 즉시 발급</div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="three-col">
+        <div class="card">
+          <div class="section-label">사용 도구</div>
+          <div>
+            <span class="badge or">Claude Code</span>
+            <span class="badge or">Claude Sonnet</span>
+            <span class="badge">Chart.js</span>
+            <span class="badge">PapaParse</span>
+            <span class="badge grn">GitHub</span>
+            <span class="badge grn">Vercel</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-label">개발 기간</div>
+          <div class="big-num" style="font-size:32px;">7차 반복</div>
+          <div class="big-label">0차 클론·배포 → 7차 완성<br>순수 AI 대화만으로 진행</div>
+        </div>
+        <div class="card">
+          <div class="section-label">결과물</div>
+          <div style="font-size:13px; color:var(--sub); line-height:1.75;">
+            단일 HTML 파일 1개<br>
+            외부 서버 불필요<br>
+            URL로 누구나 접근<br>
+            <span style="color:var(--green); font-weight:700;">운영 비용 0원</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <span class="slide-num">3 / 9</span>
+  </div>
+
+  <!-- ══════════════════════ SLIDE 3: Claude 활용 ══════════════════════ -->
+  <div class="slide" id="s3">
+    <div class="slide-inner">
+      <div class="tag">Claude 활용 방식</div>
+      <div class="h2" style="margin-bottom:22px;">실제로 어떻게 대화했나</div>
+
+      <div class="two-col">
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div class="step-row">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <div class="step-title">요구사항을 말로 설명</div>
+              <div class="step-desc">"구글 시트 데이터를 읽어서 연도별·분기별로 필터링되는 차트를 만들어줘"</div>
+            </div>
+          </div>
+          <div class="step-row">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <div class="step-title">오류가 나면 그대로 붙여넣기</div>
+              <div class="step-desc">에러 메시지를 복사해서 "이거 왜 안 되는 거야?" → 원인 분석 + 즉시 수정</div>
+            </div>
+          </div>
+          <div class="step-row">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <div class="step-title">디자인도 말로 요청</div>
+              <div class="step-desc">"카드 순서를 집중도 → 극초기 → 회수 → 투자한도 순으로 바꿔줘"</div>
+            </div>
+          </div>
+          <div class="step-row">
+            <div class="step-num">4</div>
+            <div class="step-content">
+              <div class="step-title">작업 이력도 자동 생성</div>
+              <div class="step-desc">매 작업 후 "오늘 변경사항 kpi.md에 정리해줘" → 문서화 자동 완성</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div class="highlight">
+            <strong style="color:var(--or);">핵심 깨달음</strong><br>
+            Claude는 코드를 모르는 저를 대신해서<br>
+            <strong style="color:var(--text);">"의도"를 이해하고 구현</strong>해줬습니다.<br>
+            실수하면 이유를 설명해주고, 더 나은 방법도 제안했어요.
+          </div>
+          <div class="card">
+            <div class="section-label">Claude가 해결한 실제 문제들</div>
+            <ul class="checklist">
+              <li>구글 시트 컬럼 매핑 오류 전면 수정</li>
+              <li>의결일자 기준 변경 시 <strong>회수 0건 버그</strong> OR 조건으로 픽스</li>
+              <li>PDF/PPT — 아코디언 자동 펼침 후 캡처·복원</li>
+              <li>도메인 호버 툴팁, 화면 끝 자동 방향 전환</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <span class="slide-num">4 / 9</span>
+  </div>
+
+  <!-- ══════════════════════ SLIDE 4: 개발 타임라인 ══════════════════════ -->
+  <div class="slide" id="s4">
+    <div class="slide-inner">
+      <div class="tag">개발 과정</div>
+      <div class="h2" style="margin-bottom:20px;">0차부터 7차까지 — <em>대화로 진화</em></div>
+
+      <div class="grid-4" style="height: calc(100% - 110px);">
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div class="card" style="padding:14px 16px;">
+            <div style="color:var(--or); font-weight:800; font-size:11px; margin-bottom:5px;">0차</div>
+            <div style="font-size:13px; font-weight:700; margin-bottom:3px; color:var(--text);">클론 & 첫 배포</div>
+            <div style="font-size:11px; color:var(--muted);">GitHub clone → Vercel 배포, URL 발급</div>
+          </div>
+          <div class="card" style="padding:14px 16px;">
+            <div style="color:var(--or); font-weight:800; font-size:11px; margin-bottom:5px;">1차</div>
+            <div style="font-size:13px; font-weight:700; margin-bottom:3px; color:var(--text);">기능 신규 추가</div>
+            <div style="font-size:11px; color:var(--muted);">극초기 투자·회수 섹션 구현</div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div class="card" style="padding:14px 16px;">
+            <div style="color:var(--or); font-weight:800; font-size:11px; margin-bottom:5px;">2차</div>
+            <div style="font-size:13px; font-weight:700; margin-bottom:3px; color:var(--text);">데이터 오류 수정</div>
+            <div style="font-size:11px; color:var(--muted);">시트 컬럼 매핑 전면 교체 + 목표 카드 4개</div>
+          </div>
+          <div class="card" style="padding:14px 16px;">
+            <div style="color:var(--or); font-weight:800; font-size:11px; margin-bottom:5px;">3차</div>
+            <div style="font-size:13px; font-weight:700; margin-bottom:3px; color:var(--text);">UI 대청소</div>
+            <div style="font-size:11px; color:var(--muted);">아코디언화 · 카드 순서 정리 · 폰트 개선</div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div class="card" style="padding:14px 16px;">
+            <div style="color:var(--or); font-weight:800; font-size:11px; margin-bottom:5px;">4~5차</div>
+            <div style="font-size:13px; font-weight:700; margin-bottom:3px; color:var(--text);">레이아웃 + 폰트</div>
+            <div style="font-size:11px; color:var(--muted);">투자/회수 2단 분리 · SUIT 폰트 통일</div>
+          </div>
+          <div class="card" style="padding:14px 16px;">
+            <div style="color:var(--or); font-weight:800; font-size:11px; margin-bottom:5px;">6차</div>
+            <div style="font-size:13px; font-weight:700; margin-bottom:3px; color:var(--text);">다운로드 기능</div>
+            <div style="font-size:11px; color:var(--muted);">PDF/PPT 출력 · 호버 툴팁 · 5개년 목표 갱신</div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div class="card" style="padding:14px 16px; border-color:rgba(255,90,20,.4); background:var(--or-bg);">
+            <div style="color:var(--or); font-weight:800; font-size:11px; margin-bottom:5px;">7차 ✦ 최종</div>
+            <div style="font-size:13px; font-weight:700; margin-bottom:3px; color:var(--text);">기준 변경 + 버그 픽스</div>
+            <div style="font-size:11px; color:var(--sub);">투자일자→의결일자 · 회수 0건 버그 해결</div>
+          </div>
+          <div class="highlight-green" style="padding:14px 16px;">
+            <div style="font-size:13px; line-height:1.65; color:var(--sub);">
+              <strong style="color:var(--text);">각 차수 소요 시간</strong><br>
+              30분 ~ 2시간<br>
+              <span style="color:var(--green); font-weight:700;">직접 코딩 시간 = 0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <span class="slide-num">5 / 9</span>
+  </div>
+
+  <!-- ══════════════════════ SLIDE 5: 기능 ① ══════════════════════ -->
+  <div class="slide" id="s5">
+    <div class="slide-inner">
+      <div class="tag">대시보드 기능</div>
+      <div class="h2" style="margin-bottom:22px;">투자실 KPI를 <em>한 화면</em>에서</div>
+
+      <div class="two-col">
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div class="card">
+            <div class="section-label">① 상단 목표 카드 4개</div>
+            <div class="grid-2" style="gap:12px;">
+              <div class="kpi-mini">
+                <div class="km-label">도메인 집중도 목표</div>
+                <div class="km-val">80%</div>
+                <div class="km-bar"><div class="km-fill" style="width:73%;"></div></div>
+              </div>
+              <div class="kpi-mini">
+                <div class="km-label">극초기 투자 목표</div>
+                <div class="km-val">50억</div>
+                <div class="km-bar"><div class="km-fill" style="width:45%;"></div></div>
+              </div>
+              <div class="kpi-mini">
+                <div class="km-label">회수 목표</div>
+                <div class="km-val">12.6억</div>
+                <div class="km-bar"><div class="km-fill" style="width:30%;"></div></div>
+              </div>
+              <div class="kpi-mini">
+                <div class="km-label">총 투자한도</div>
+                <div class="km-val">250억</div>
+                <div class="km-bar"><div class="km-fill" style="width:60%;"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="section-label">② 연도 / 분기 필터</div>
+            <div style="font-size:13px; color:var(--muted); line-height:1.75;">
+              연도(2025·2026…) + 분기(Q1~Q4) + 신규/누적 선택<br>
+              → 모든 카드·차트·테이블이 <strong style="color:var(--text);">동시에 업데이트</strong>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div class="card">
+            <div class="section-label">③ 투자 / 회수 2단 레이아웃</div>
+            <div style="font-size:13px; color:var(--muted); line-height:1.75; margin-bottom:12px;">
+              좌(2/3) 투자 섹션 · 우(1/3) 회수 섹션으로 구분<br>
+              각 섹션마다 실적 카드 + 차트 + 접힘 상세 테이블
+            </div>
+            <div style="display:flex; gap:8px;">
+              <div style="flex:2; background:var(--or-bg); border:1px solid rgba(255,90,20,.2); border-radius:8px; padding:8px; font-size:11px; color:var(--or); text-align:center; font-weight:700;">📂 투자 섹션 (2/3)</div>
+              <div style="flex:1; background:#F0F0EC; border:1px solid var(--border); border-radius:8px; padding:8px; font-size:11px; color:var(--sub); text-align:center; font-weight:700;">📂 회수 (1/3)</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="section-label">④ 연도별 자동 활성/비활성</div>
+            <div style="font-size:13px; color:var(--muted); line-height:1.75;">
+              목표가 없는 연도의 KPI 카드는 자동으로 비활성<br>
+              <span style="color:var(--text); font-weight:600;">2025년 → 투자한도만 활성</span><br>
+              <span style="color:var(--text); font-weight:600;">2027~2030 → 회수 목표만 활성</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <span class="slide-num">6 / 9</span>
+  </div>
+
+  <!-- ══════════════════════ SLIDE 6: 기능 ② ══════════════════════ -->
+  <div class="slide" id="s6">
+    <div class="slide-inner">
+      <div class="tag">대시보드 기능</div>
+      <div class="h2" style="margin-bottom:22px;">보고서 출력까지 — <em>원클릭</em></div>
+
+      <div class="three-col">
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div class="card" style="flex:1;">
+            <div class="section-label">⑤ 구글 시트 실시간 연동</div>
+            <div style="font-size:13px; color:var(--muted); line-height:1.75;">
+              새로고침 버튼 한 번으로<br>구글 시트 최신 데이터 반영<br><br>
+              시트에 투자 건 추가 →<br>
+              클릭 한 번 →<br>
+              <strong style="color:var(--green);">즉시 대시보드 업데이트</strong>
+            </div>
+          </div>
+          <div class="card">
+            <div class="section-label">⑥ 도메인 호버 툴팁</div>
+            <div style="font-size:13px; color:var(--muted); line-height:1.75;">
+              도메인 셀에 마우스 올리면<br>
+              포함 기업명 목록 팝업<br>
+              화면 끝에서 자동 방향 전환
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div class="card" style="flex:1;">
+            <div class="section-label">⑦ PDF 다운로드</div>
+            <div style="font-size:13px; color:var(--muted); line-height:1.75;">
+              A4 세로, 8mm 여백<br>
+              전체 대시보드 자동 캡처<br>
+              긴 페이지는 여러 장으로 분할<br><br>
+              <strong style="color:var(--text);">보고서 즉시 출력 가능</strong>
+            </div>
+          </div>
+          <div class="card">
+            <div class="section-label">자동 펼침 후 캡처</div>
+            <div style="font-size:13px; color:var(--muted); line-height:1.75;">
+              다운로드 전 숨겨진 섹션<br>
+              자동으로 열고 캡처 후<br>
+              원래 상태로 자동 복원
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div class="card" style="flex:1;">
+            <div class="section-label">⑧ PPT 다운로드</div>
+            <div style="font-size:13px; color:var(--muted); line-height:1.75;">
+              16:9 와이드 슬라이드<br>
+              긴 페이지 → 여러 슬라이드로<br><br>
+              파일명 자동 생성<br>
+              <code style="font-size:11px; color:var(--or); background:var(--or-bg); padding:2px 6px; border-radius:4px;">dcamp-invest-kpi-2026-07-01.pptx</code>
+            </div>
+          </div>
+          <div class="card-or" style="padding:16px 18px;">
+            <div style="font-size:13px; line-height:1.75; color:var(--sub);">
+              <strong style="color:var(--or);">핵심</strong><br>
+              이 모든 기능을<br>
+              <strong style="color:var(--text);">코드 없이 말로만</strong><br>
+              요청해서 구현했습니다
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <span class="slide-num">7 / 9</span>
+  </div>
+
+  <!-- ══════════════════════ SLIDE 7: 성과 ══════════════════════ -->
+  <div class="slide" id="s7">
+    <div class="slide-inner">
+      <div class="tag">성과 & 배운 점</div>
+      <div class="h2" style="margin-bottom:22px;">AI 덕분에 가능했던 것들</div>
+
+      <div class="two-col">
+        <div>
+          <div class="grid-2" style="margin-bottom:14px; gap:12px;">
+            <div class="card" style="padding:18px 20px; text-align:center;">
+              <div class="big-num">0원</div>
+              <div class="big-label">개발 외주 비용</div>
+              <div class="big-desc">직접 만들었으니까</div>
+            </div>
+            <div class="card" style="padding:18px 20px; text-align:center;">
+              <div class="big-num">0줄</div>
+              <div class="big-label">직접 작성한 코드</div>
+              <div class="big-desc">100% Claude 작성</div>
+            </div>
+            <div class="card" style="padding:18px 20px; text-align:center;">
+              <div class="big-num">7번</div>
+              <div class="big-label">반복 개선 횟수</div>
+              <div class="big-desc">대화로 계속 발전</div>
+            </div>
+            <div class="card" style="padding:18px 20px; text-align:center;">
+              <div class="big-num">∞</div>
+              <div class="big-label">재활용 가능성</div>
+              <div class="big-desc">시트만 바꾸면 OK</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div class="card">
+            <div class="section-label">AI 활용의 진짜 가치</div>
+            <ul class="checklist">
+              <li><strong>전문가 없이도</strong> 전문가 수준 결과물 가능</li>
+              <li>실수해도 괜찮 — <strong>설명하면 바로 고쳐줌</strong></li>
+              <li>요구사항이 바뀌어도 <strong>즉시 수정</strong> 가능</li>
+              <li>문서화까지 자동 — <strong>작업 이력 자동 정리</strong></li>
+            </ul>
+          </div>
+          <div class="highlight">
+            <strong style="color:var(--or);">"AI는 도구가 아니라 팀원입니다"</strong><br>
+            <span style="font-size:13px;">
+              모르는 걸 솔직히 물어보면 알려주고,<br>
+              원하는 걸 설명하면 구현해줍니다.<br>
+              <strong style="color:var(--text);">아이디어만 있으면 누구든 만들 수 있습니다.</strong>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <span class="slide-num">8 / 9</span>
+  </div>
+
+  <!-- ══════════════════════ SLIDE 8: 마무리 ══════════════════════ -->
+  <div class="slide" id="s8">
+    <div class="slide-inner">
+      <div class="dcamp-logo" style="margin-bottom:28px; justify-content:center;">
+        <div class="logo-box">d</div>
+        dcamp
+      </div>
+      <div class="tag" style="margin:0 auto 20px;">마무리</div>
+      <div class="slide-title" style="margin-bottom:14px;">
+        <em>대화</em>가 곧 개발이다
+      </div>
+      <div class="slide-sub" style="margin:0 auto 36px; text-align:center; font-size:18px;">
+        Claude와 함께라면 비개발자도<br>
+        실무에서 바로 쓰는 데이터 대시보드를 직접 만들 수 있습니다.
+      </div>
+
+      <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+        <div class="card" style="padding:14px 22px; text-align:center; min-width:190px;">
+          <div style="font-size:11px; color:var(--muted); margin-bottom:5px;">대시보드 주소</div>
+          <div style="font-size:13px; color:var(--or); font-weight:700; word-break:break-all;">zoom-dcamp.github.io/<br>dcamp-invest-kpi</div>
+        </div>
+        <div class="card" style="padding:14px 22px; text-align:center; min-width:190px;">
+          <div style="font-size:11px; color:var(--muted); margin-bottom:5px;">사용 AI</div>
+          <div style="font-size:13px; color:var(--text); font-weight:700;">Claude Code<br>by Anthropic</div>
+        </div>
+        <div class="card" style="padding:14px 22px; text-align:center; min-width:190px;">
+          <div style="font-size:11px; color:var(--muted); margin-bottom:5px;">발표자</div>
+          <div style="font-size:13px; color:var(--text); font-weight:700;">투자전략팀 김하늬<br>dcamp</div>
+        </div>
+      </div>
+
+      <div style="margin-top:32px; font-size:17px; color:var(--muted);">
+        감사합니다. 질문 있으시면 말씀해 주세요.
+      </div>
+    </div>
+    <span class="slide-num">9 / 9</span>
+  </div>
+
+</div><!-- /deck -->
+
+<!-- ── 네비게이션 ── -->
+<div id="nav">
+  <button id="btn-prev" onclick="go(-1)" disabled>&#8592;</button>
+  <span id="slide-counter">1 / 9</span>
+  <button id="btn-next" onclick="go(1)">&#8594;</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  let cur = 0;
+
+  function go(dir) {
+    slides[cur].classList.remove('active');
+    cur = Math.max(0, Math.min(slides.length - 1, cur + dir));
+    slides[cur].classList.add('active');
+    document.getElementById('slide-counter').textContent = `${cur + 1} / ${slides.length}`;
+    document.getElementById('btn-prev').disabled = cur === 0;
+    document.getElementById('btn-next').disabled = cur === slides.length - 1;
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+  });
+
+  let startX = 0;
+  document.addEventListener('touchstart', e => { startX = e.touches[0].clientX; });
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1);
+  });
+</script>
+</body>
+</html>
