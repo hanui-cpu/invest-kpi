@@ -34,7 +34,9 @@ async function getToken(sa){
 
 module.exports = async (req, res) => {
   try {
-    const sa  = JSON.parse(process.env.GSA_KEY);
+    // GSA_KEY 우선, 없으면 기존 대시보드가 쓰는 GOOGLE_SERVICE_ACCOUNT_JSON 재사용
+    // (같은 서비스 계정이면 추가 등록 불필요 · 시트 권한 없으면 스냅샷 모드로 자동 폴백)
+    const sa  = JSON.parse(process.env.GSA_KEY || process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
     const tok = await getToken(sa);
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet` +
       `?valueRenderOption=UNFORMATTED_VALUE` +
