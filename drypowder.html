@@ -663,8 +663,9 @@ function render(){
     ? `드라이파우더가 매년 약 <code>+${fmt(m.net,0)}억</code>씩 쌓입니다`
     : `드라이파우더가 매년 약 <code>−${fmt(-m.net,0)}억</code>씩 줄어듭니다`;
   // 데이터 정합성 경고: 기존 펀드 집행 계획 합계가 현재 드라이파우더를 넘으면 입력 오류
+  // 허용 오차 0.06억: dp0가 소수 첫째 자리로 반올림(최대 ±0.05억)되므로 그보다 커야 허위 경고가 없음
   const baseSum=years().slice(0,4).reduce((a,t)=>a+basePipeline(t),0);
-  const warn = baseSum>P.dp0+0.01
+  const warn = baseSum>P.dp0+0.06
     ? `<br><span style="color:var(--bad);font-weight:700">⚠ 데이터 점검 필요: 기존 펀드 집행 파이프라인 합계(${fmt(baseSum,0)}억)가 현재 드라이파우더(${fmt(P.dp0,0)}억)보다 큽니다 — 설정 블록 또는 현재 드라이파우더 입력값을 확인하세요</span>`
     : '';
   document.getElementById('flowCompare').innerHTML=
