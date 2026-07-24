@@ -11,7 +11,8 @@
 - **배포 URL**: https://dcamp-invest-kpi.vercel.app
   - 관리자 모드(데이터 새로고침 버튼 표시): `?admin=dcamp2026`
 - **로우데이터 시트**: https://docs.google.com/spreadsheets/d/1TQpPtnBowiQKw_dQrol29Gi27PRf7xKzwvUkQaPHW30
-- **주요 기술**: 단일 HTML (Vanilla JS) + Chart.js + PapaParse + Vercel 정적 배포
+  - **(20차~) 비공개 전환됨** — 브라우저 직접 읽기 불가. 서버 함수 `api/sheet.js`가 서비스계정으로 읽어 CSV로 중계. 펀드 시트(`1bt9…`)도 동일.
+- **주요 기술**: 단일 HTML (Vanilla JS) + Chart.js + PapaParse + Vercel 정적 배포 + 서버리스 함수(`api/briefing.js`, `api/sheet.js`)
 
 ### 파일 구조
 
@@ -463,6 +464,51 @@ const cntColors=sorted.map(([d])=>makeDiagPattern(KEY_DOMAINS.has(d)?'#FF5831':'
 
 ---
 
+> ⚠️ **문서 공백 안내**: 코드(`index.html`) 주석에는 **15~19차** 변경 흔적(펀드팀 기준일자 셀렉터·환율표·해외 딜 리스트 등 [15차], PDF/PPT 관련 [18·19차] 등)이 있으나, 이 작업기록 ledger는 14차 이후 갱신이 밀려 있었습니다. 15~19차 상세는 미문서화 상태이며, 아래 20차부터 다시 이어 기록합니다.
+
+---
+
+### 🟢 20차 (2026-07-15): 데이터 시트 비공개 전환 + 서버 경유 읽기 (권한 개조)
+
+> **배경**: 로우데이터 시트에 서비스(로봇) 계정을 뷰어로 추가하는 과정에서 시트 "일반 액세스"가 **제한됨(비공개)**으로 바뀜 → 대시보드가 쓰던 **공개 CSV 직접 읽기**(브라우저에서 `docs.google.com/export`·`gviz`)가 막혀 데이터가 안 뜨는 증상. 확인 결과 두 데이터 시트 모두 **HTTP 401**.
+>
+> **결정**: 시트를 계속 비공개로 유지하고, **서버 함수가 로봇 계정으로 읽어 CSV로 넘겨주도록 개조**. (사용자 선택 = "비공개 유지 + 코드 개조")
+
+**신규 파일: `api/sheet.js`** (Vercel 서버리스, CommonJS)
+- `google-auth-library`의 `JWT`로 서비스계정 인증 → Google **Sheets API v4** `values.get` 호출
+- 응답을 **CSV 텍스트**로 변환해 반환 → 브라우저의 기존 파싱(`fetchCsvRows`+PapaParse) 그대로 재사용
+- `valueRenderOption=FORMATTED_VALUE`: 화면 표시값 그대로(콤마 포함) 반환 — 숫자 파서(`parseNum`/`parseNumLoose`)가 콤마를 제거하므로 안전
+- **컬럼 정렬 보존**: 요청 `range`의 폭(예: `A22:O35`→15칸)만큼 각 행을 빈칸으로 패딩 → gviz가 하던 컬럼 정렬을 동일하게 재현 (`rangeWidth`)
+- `doc` 별칭으로 시트 ID를 서버에 숨김: `main`=투자 로우데이터, `fund`=펀드 시트
+- 첫 시트(gid=0) 이름은 메타데이터로 자동 조회 후 캐시. 403이면 "서비스계정을 뷰어로 공유했는지 확인" 힌트 반환
+
+**`index.html` 수정 (계산·표시 로직은 미변경, 주소만 교체)**
+- `CSV_URL`: `…/export?format=csv&gid=0` → **`/api/sheet?doc=main`**
+- `fundCsvUrl(sheet,range)`: `…/gviz/tq?…` → **`/api/sheet?doc=fund&tab=<시트명>&range=<범위>`**
+
+**의존성·환경변수**
+- `package.json`: `google-auth-library ^9.15.0` 추가
+- Vercel 환경변수 **`GOOGLE_SERVICE_ACCOUNT_JSON`**(Production) 등록 — 서비스계정 JSON 키 전체를 한 줄로 저장
+- 로컬 `.env`에도 동일 키 추가(`.gitignore`로 git 제외), `.env.example`에 설명 라인 추가
+- 서비스계정: `investment-kpi-sheets-reader@invest-kpi-briefing.iam.gserviceaccount.com`
+  - **두 데이터 시트(main·fund) 모두에 "뷰어"로 공유되어 있어야 함** (확인됨)
+  - 참고: 14차 메모의 "서비스계정 키 생성 차단(`iam.disableServiceAccountKeyCreation`)"이 이 시점엔 해제/예외였는지 키가 정상 발급·동작함
+
+**검증 (배포 후 스모크 테스트)**
+- `doc=main` → HTTP 200, CSV, 헤더 35컬럼, 로드 대상 **263건** (13차 기준 건수와 일치)
+- `doc=fund`의 6개 요청(전략도메인 출자 / 운용사 협력 전체 / `A22:O35` / `A118:L174` / `K38:M42` / `B37:I80`) 모두 HTTP 200
+- 배포된 `index.html`이 `/api/sheet?doc=main`·`doc=fund`를 참조함 확인
+
+**⚠️ 보안 한계 (중요)**
+- 이 개조로 **원본 시트·다른 탭·편집 권한·수정 기록**은 외부 비공개가 됨.
+- 그러나 **`/api/sheet` 및 대시보드 URL 자체는 인증 없이 공개**라, **데이터 값은 URL을 아는 사람이 여전히 볼 수 있음**. 데이터까지 완전히 잠그려면 14차 "향후(접속 보안)"의 **@dcamp.kr 로그인 게이트**를 반드시 함께 적용해야 함.
+
+**주의사항**
+- 서비스계정 키(`private_key`)가 채팅으로 노출된 이력 있음 → 필요 시 **키 폐기 후 재발급** 권장. 재발급 시 **Vercel 환경변수 `GOOGLE_SERVICE_ACCOUNT_JSON` 값만 교체**하면 대시보드는 그대로 동작.
+- 시트 컬럼 순서가 또 바뀌면 `index.html`의 `COLUMN_MAP`만 맞추면 됨(서버는 위치 무관하게 전체를 넘김).
+
+---
+
 ## 📝 (원본 기획 메모) 2026 투자 브리핑 설계
 
 > 2026-07-14 기획 확정. 아래는 구상 단계 메모 (구현은 위 14차 참조).
@@ -523,4 +569,4 @@ const cntColors=sorted.map(([d])=>makeDiagPattern(KEY_DOMAINS.has(d)?'#FF5831':'
 
 ---
 
-_마지막 업데이트: 2026-07-14 (14차 2026 AI 브리핑 + 신호등 범례 배포 완료 · 접속 보안은 보류)_
+_마지막 업데이트: 2026-07-15 (20차 데이터 시트 비공개 전환 + 서버 경유 읽기 `api/sheet.js` 배포 완료 · 접속 보안은 여전히 보류)_

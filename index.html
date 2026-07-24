@@ -1012,7 +1012,9 @@ const YEAR_BUDGETS={
   2023:6000000000,2024:8000000000,2025:12000000000,2026:25000000000
 };
 const SHEET_ID='1TQpPtnBowiQKw_dQrol29Gi27PRf7xKzwvUkQaPHW30';
-const CSV_URL=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
+// [권한개조] 시트를 비공개로 두고, 서버 함수(api/sheet.js)가 로봇 계정으로 읽어 CSV로 넘겨줌.
+//   기존 공개 CSV(docs.google.com/export) → /api/sheet?doc=main 으로 교체.
+const CSV_URL=`/api/sheet?doc=main`;
 // [수정-3차] 시트에 "대분류" 열이 K열에 추가 삽입되어 그 뒤 컬럼이 전부 1칸씩 뒤로 밀림 (2026-07-10 확인)
 //   A(0) 기업명 | D(3) 투자일자 | E(4) 회수일자 | F(5) Pre-value
 //   K(10) 대분류(신규) | L(11) 중분류 | N(13) 투자금액 | O(14) 회수금액
@@ -2163,10 +2165,10 @@ let fundDataLoaded=false;
 let currentTeam=(()=>{try{return localStorage.getItem('dcamp-team')||'invest';}catch(e){return 'invest';}})();
 
 function fundCsvUrl(sheet,range){
-  // headers=0: 자동 헤더 추론 비활성화 → 모든 행을 데이터로 반환
-  // range: 좁은 범위로 fetch하면 gviz가 컬럼 타입을 재감지 → 문자열 셀 보존됨
+  // [권한개조] 비공개 시트를 서버 함수(api/sheet.js)가 로봇 계정으로 읽어 CSV로 넘겨줌.
+  //   서버가 범위 폭만큼 빈칸을 패딩해줘서 기존 gviz 컬럼 정렬(문자열 셀 보존)과 동일하게 동작.
   const r=range?`&range=${encodeURIComponent(range)}`:'';
-  return `https://docs.google.com/spreadsheets/d/${FUND_SHEET_ID}/gviz/tq?tqx=out:csv&headers=0${r}&sheet=${encodeURIComponent(sheet)}&t=${Date.now()}`;
+  return `/api/sheet?doc=fund&tab=${encodeURIComponent(sheet)}${r}`;
 }
 
 // [9차] file:// CORS 우회를 위한 robust fetch — PapaParse download → fetch API → JSONP 순으로 fallback
