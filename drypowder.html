@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>의무투자 배수 시뮬레이터 · d.camp</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+@font-face{
+  font-family:'SUIT Variable';
+  src:url('/fonts/SUIT-Variable.ttf') format('truetype-variations'),
+      url('./SUIT-Variable.ttf') format('truetype-variations');
+  font-weight:100 900; font-style:normal; font-display:swap;
+}
+:root{
+  --bg:#F2F1EC;--sf:#FFFFFF;--sf2:#ECEAE3;
+  --black:#111111;--black2:#333333;--gray:#888888;--gray2:#BBBBBB;
+  --or:#FF5831;--or-lt:#FFF0EB;--or-dk:#D94020;
+  --ok:#1A7A4A;--ok-bg:#E4F5EC;
+  --warn:#A05A00;--warn-bg:#FFF4E0;
+  --bad:#C0281C;--bad-bg:#FDECEA;
+  --border:#DDDBD3;--r:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'SUIT Variable',-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',Roboto,sans-serif;background:var(--bg);color:var(--black);-webkit-font-smoothing:antialiased}
+.hd{background:#111;color:#fff;padding:0 32px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:200}
+.hd-brand{display:flex;align-items:center;gap:10px}
+.hd-logo{font-size:20px;font-weight:600;color:var(--or)}
+.hd-div{width:1px;height:20px;background:#444}
+.hd-title{font-size:13px;color:#aaa}
+.hd-r{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;font-family:inherit}
+.btn-ghost{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2)}
+.btn-ghost:hover{background:rgba(255,255,255,.2)}
+.wrap{max-width:1440px;margin:0 auto;padding:24px 32px 64px}
+.page-title{font-size:22px;font-weight:700;letter-spacing:-.5px;margin-bottom:2px}
+.page-sub{font-size:13px;color:var(--gray);margin-bottom:20px;line-height:1.6}
+.card{background:var(--sf);border-radius:var(--r);padding:20px 22px;border:1px solid var(--border);margin-bottom:16px}
+.card-hd{font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card-hd .sub{font-size:11px;font-weight:500;color:var(--gray)}
+.grid2{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}
+@media(max-width:1080px){.grid2{grid-template-columns:1fr}}
+
+/* verdict hero */
+.slider-row{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.n-display{display:flex;flex-direction:column;align-items:center;min-width:120px}
+.n-val{font-size:52px;font-weight:800;letter-spacing:-2px;line-height:1;color:var(--or)}
+.n-unit{font-size:14px;color:var(--gray);font-weight:600;margin-top:2px}
+.slider-wrap{flex:1;min-width:260px}
+input[type=range]{width:100%;height:6px;-webkit-appearance:none;appearance:none;background:linear-gradient(90deg,var(--or) 0%,var(--or) var(--pct,50%),#e5e3db var(--pct,50%),#e5e3db 100%);border-radius:6px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--or);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--or);cursor:pointer}
+.ticks{display:flex;justify-content:space-between;font-size:10px;color:var(--gray2);margin-top:6px;font-weight:600}
+.verdict{border-radius:12px;padding:16px 20px;min-width:230px;text-align:center}
+.verdict .vlabel{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;opacity:.7}
+.verdict .vmain{font-size:26px;font-weight:800;letter-spacing:-.5px;margin:4px 0}
+.verdict .vdesc{font-size:12px;font-weight:500;line-height:1.4}
+.v-ok{background:var(--ok-bg);color:var(--ok)}
+.v-warn{background:var(--warn-bg);color:var(--warn)}
+.v-bad{background:var(--bad-bg);color:var(--bad)}
+
+/* kpi boxes */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:16px}
+.verdict .vflow{font-size:11px;font-weight:700;margin-top:8px;padding-top:8px;border-top:1px dashed rgba(0,0,0,.15)}
+@media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{border:1px solid var(--border);border-radius:12px;padding:14px 16px;background:var(--sf)}
+.kpi .k-label{font-size:11px;font-weight:700;letter-spacing:.2px;color:var(--gray)}
+.kpi .k-val{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-top:5px}
+.kpi .k-sub{font-size:11px;color:var(--gray);margin-top:2px}
+.kpi.accent{background:var(--or-lt);border-color:#F5C9BC}
+.kpi.accent .k-val{color:var(--or-dk)}
+
+/* table */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--border)}
+th:first-child,td:first-child{text-align:left}
+thead th{font-size:10.5px;letter-spacing:.2px;color:var(--gray);font-weight:700;background:var(--sf2)}
+tbody tr.cur{background:var(--or-lt)}
+tbody tr.cur td{font-weight:700}
+tbody td .chip{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.c-ok{background:var(--ok-bg);color:var(--ok)}
+.c-warn{background:var(--warn-bg);color:var(--warn)}
+.c-bad{background:var(--bad-bg);color:var(--bad)}
+
+/* assumptions */
+.acc{border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden;background:var(--sf)}
+.acc-hd{padding:13px 18px;font-size:13px;font-weight:700;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none}
+.acc-hd:hover{background:var(--sf2)}
+.acc-hd .caret{transition:transform .2s;color:var(--gray)}
+.acc.open .acc-hd .caret{transform:rotate(90deg)}
+.acc-body{display:none;padding:6px 18px 18px}
+.acc.open .acc-body{display:block}
+.field-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px 16px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11px;font-weight:600;color:var(--black2)}
+.field .hint{font-size:10px;color:var(--gray);line-height:1.4}
+.field input{padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:#fff;width:100%}
+.field input:focus{outline:none;border-color:var(--or)}
+.sub-h{font-size:11px;font-weight:700;color:var(--or-dk);letter-spacing:.3px;margin:16px 0 8px}
+.sub-h:first-child{margin-top:4px}
+.note{font-size:11.5px;color:var(--gray);line-height:1.7}
+.note b{color:var(--black2)}
+.formula{background:var(--sf2);border-radius:8px;padding:12px 14px;font-size:12px;line-height:1.9;color:var(--black2);margin-top:8px;font-variant-numeric:tabular-nums}
+.formula code{background:#fff;padding:1px 6px;border-radius:5px;border:1px solid var(--border);font-family:'SUIT Variable',monospace;color:var(--or-dk);font-weight:700}
+.reset-btn{background:var(--sf2);color:var(--black2);border:1px solid var(--border)}
+.reset-btn:hover{background:#e2e0d8}
+.legend-dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:middle}
+.chart-box{position:relative;height:340px}
+.mini-note{font-size:10.5px;color:var(--gray2);margin-top:8px;text-align:right}
+.tgt td input{width:72px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;text-align:right;background:#fff}
+.tgt td input:focus{outline:none;border-color:var(--or)}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <div class="hd-brand">
+    <span class="hd-logo">dcamp</span>
+    <div class="hd-div"></div>
+    <span class="hd-title">KPI Dashboard · 펀드팀</span>
+  </div>
+  <div class="hd-r">
+    <!-- KPI 대시보드 배포본 전용: 펀드팀 페이지 복귀 버튼 -->
+    <a class="btn btn-ghost" href="fund.html" style="text-decoration:none">← 펀드팀 KPI 대시보드</a>
+    <button class="btn btn-ghost" onclick="window.print()">인쇄 / PDF</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="page-title" style="margin-bottom:20px">재단연관기업 의무투자 배수 시뮬레이터
+    <span style="font-size:12px;font-weight:500;color:var(--gray);margin-left:8px">출처: <span id="asof">–</span></span>
+  </div>
+
+  <!-- ============ 결론 배너 ============ -->
+  <div class="card" style="background:#111;border:none;color:#fff">
+    <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--or);border:1px solid var(--or);border-radius:20px;padding:4px 12px">결론</div>
+      <div style="font-size:14px;line-height:1.6;flex:1;min-width:280px" id="conclusion">—</div>
+    </div>
+  </div>
+
+  <!-- ============ HERO: 배수 컨트롤 + 판정 ============ -->
+  <div class="card">
+    <div class="card-hd">의무투자 배수 조정 <span class="sub"> </span></div>
+    <div class="slider-row">
+      <div class="n-display">
+        <div class="n-val" id="nVal">1.5</div>
+        <div class="n-unit">배</div>
+      </div>
+      <div class="slider-wrap">
+        <input type="range" id="nSlider" min="1.0" max="2.0" step="0.1" value="1.5">
+        <div class="ticks"><span>1.0배</span><span>1.2배</span><span>1.4배</span><span>1.6배</span><span>1.8배</span><span>2.0배</span></div>
+      </div>
+      <div class="verdict" id="verdict">
+        <div class="vlabel">드라이파우더 보유량 판정</div>
+        <div class="vmain" id="vMain">적정</div>
+        <div class="vdesc" id="vDesc">—</div>
+        <div class="vflow" id="vFlow"></div>
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi accent">
+        <div class="k-label">5개년 평균 연말 드라이파우더</div>
+        <div class="k-val" id="kpiAvgDP">–</div>
+        <div class="k-sub" id="kpiAvgDPSub">2026년~2030년 연말 잔액 평균</div>
+      </div>
+      <div class="kpi accent">
+        <div class="k-label">확보 년치</div>
+        <div class="k-val" id="kpiCov">–</div>
+        <div class="k-sub">5개년 평균 연말 드라이파우더 ÷ 연간 필요금액</div>
+      </div>
+      <div class="kpi">
+        <div class="k-label">연간 필요금액</div>
+        <div class="k-val" id="kpiDemand">–</div>
+        <div class="k-sub" id="kpiDemandSub">Early+Growth+Late</div>
+      </div>
+      <div class="kpi">
+        <div class="k-label">매년 새로 확보되는 드라이파우더</div>
+        <div class="k-val" id="kpiSupply">–</div>
+        <div class="k-sub" id="kpiSupplySub">배수 × 연간 출자액</div>
+      </div>
+      <div class="kpi">
+        <div class="k-label">실제 투자 비율</div>
+        <div class="k-val" id="kpiFlow">–</div>
+        <div class="k-sub" id="kpiFlowSub">필요금액 중 실제 투자되는 비율</div>
+        <div class="k-sub" style="color:var(--gray2)">연간 필요금액 중 실제로 투자까지 이어지는 비율</div>
+      </div>
+    </div>
+
+    <div class="formula" style="margin-top:14px" id="flowCompare"></div>
+  </div>
+
+  <div class="grid2">
+    <!-- 차트 -->
+    <div class="card">
+      <div class="card-hd">연도별 연말 드라이파우더 추이
+        <span class="sub" id="chartLegend"></span>
+      </div>
+      <div class="chart-box"><canvas id="dpChart"></canvas></div>
+      <div class="mini-note" id="chartNote">2026~2029년: 기존 펀드 잔여분 + 신규 펀드 소진 · 2030년~: 신규 펀드 소진만 (모두 ③ 투자 속도 적용)</div>
+    </div>
+
+    <!-- 시나리오 비교 -->
+    <div class="card">
+      <div class="card-hd">배수별 비교 <span class="sub"> </span></div>
+      <table id="scenTable">
+        <thead><tr><th>배수</th><th>5개년 평균 연말<br>드라이파우더</th><th>확보<br>년치</th><th>5개년 평균<br>실제 투자</th><th>드라이파우더<br>연간 증감</th><th>판정</th></tr></thead>
+        <tbody id="scenBody"></tbody>
+      </table>
+      <div class="formula" style="margin-top:14px">
+        <b>판정 방법</b> — 5개년 평균 연말 드라이파우더가 연간 필요금액의 몇 년치인지 계산해서,<br>
+        <code id="fMin">1.85</code>년치보다 적으면 <b>부족</b> · <code id="fMax">2.15</code>년치보다 많으면 <b>과잉</b> · 그 사이면 <b>적정</b><br>
+        <span class="legend-dot" style="background:var(--ok)"></span>적정 · <span class="legend-dot" style="background:var(--bad)"></span>부족 (투자할 돈이 모자랄 위험) · <span class="legend-dot" style="background:var(--warn)"></span>과잉 (필요 이상 돈이 묶임)
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 단계별 수급 ============ -->
+  <div class="card">
+    <div class="card-hd">단계별 수급 — Early·Growth·Late <span class="sub">· 신규 출자 타겟 비율에 따라 달라지는 단계별 충족 현황 (참고 지표)</span></div>
+    <div id="stageWrap" style="overflow-x:auto"></div>
+    <div class="mini-note" style="text-align:left">각 칸 = 그해 단계별 실제 투자금액 (괄호 = 단계별 연간 필요금액 대비 충족률) · '② (공급) 신규 출자 타겟 stage 비율'을 조정하면 변합니다 (드라이파우더 보유량 판정과는 별개)</div>
+  </div>
+
+  <!-- ============ 가정 조정 ============ -->
+  <div class="card">
+    <div class="card-hd" style="justify-content:space-between;display:flex">
+      <span>조건 변경</span>
+      <button class="btn reset-btn" onclick="resetAll()">기본값 복원</button>
+    </div>
+
+    <!-- 수요 -->
+    <div class="acc open" data-acc>
+      <div class="acc-hd">① (수요) 연간 필요금액은 얼마인가 <span class="caret">▶</span></div>
+      <div class="acc-body">
+        <div class="note" style="margin-bottom:10px">배치기업이 투자를 유치할 때 <b>그중 재단연관기업 투자의무가 있는 출자펀드가 대주는 몫</b>을 모두 더한 금액입니다. (<span id="evidenceTxt">근거: 배치 1~6기 49개사 92개 라운드 분석 — 디캠프 직접투자·출자펀드 몫: <b>Seed 12% · Pre-A 24% · Series A 18% · Series B 이상 29%</b></span>)</div>
+        <div class="sub-h">Early — 극초기 단계 (Seed~Pre-A) · 배치 전 투자</div>
+        <div class="field-grid">
+          <div class="field"><label>건당 투자금 (억)</label><input type="number" data-k="avgE" step="1"><span class="hint">기업 1곳의 해당 라운드 전체 유치금액</span></div>
+          <div class="field"><label>유치완료 기업 수(1년 기준)</label><input type="number" data-k="cntE" step="1"><span class="hint">배치 전 극초기 단계 투자를 유치 완료한 기업 수</span></div>
+          <div class="field"><label>충당률 (%)</label><input type="number" data-k="rateE" step="5"><span class="hint">라운드 금액 중 재단연관기업 투자의무가 있는 출자펀드가 대는 몫</span></div>
+          <div class="field"><label>투자유치 성공률 (%)</label><input type="number" data-k="succE" step="5"><span class="hint">유치 희망 기업 중 실제 성공 비율</span></div>
+        </div>
+        <div class="sub-h">Growth — 초기 단계 (Series A) · 배치 후 후속투자</div>
+        <div class="field-grid">
+          <div class="field"><label>건당 투자금 (억)</label><input type="number" data-k="avgG" step="1"></div>
+          <div class="field"><label>유치희망 기업 수(1년 기준)</label><input type="number" data-k="cntG" step="1"><span class="hint">해당 단계 투자 유치를 희망하는 기업 수</span></div>
+          <div class="field"><label>충당률 (%)</label><input type="number" data-k="rateG" step="5"></div>
+          <div class="field"><label>투자유치 성공률 (%)</label><input type="number" data-k="succG" step="5"></div>
+        </div>
+        <div class="sub-h">Late — 중기 단계 (Series B 이상) · 배치 후 후속투자</div>
+        <div class="field-grid">
+          <div class="field"><label>건당 투자금 (억)</label><input type="number" data-k="avgL" step="1"></div>
+          <div class="field"><label>유치희망 기업 수(1년 기준)</label><input type="number" data-k="cntL" step="1"></div>
+          <div class="field"><label>충당률 (%)</label><input type="number" data-k="rateL" step="5"></div>
+          <div class="field"><label>투자유치 성공률 (%)</label><input type="number" data-k="succL" step="5"></div>
+        </div>
+        <div class="formula" id="demandFormula"></div>
+      </div>
+    </div>
+
+    <!-- 공급 -->
+    <div class="acc" data-acc>
+      <div class="acc-hd">② (공급) 새로 확보되는 드라이파우더는 얼마인가 <span class="caret">▶</span></div>
+      <div class="acc-body">
+        <div class="note" style="margin-bottom:10px">매년 새 펀드에 출자하면, <b>출자액 × 배수</b>만큼 재단연관기업 의무투자 드라이파우더가 새로 확보됩니다.</div>
+        <div class="field-grid">
+          <div class="field"><label>현재 드라이파우더 (억)</label><input type="number" data-k="dp0" step="0.1"><span class="hint">기존 출자 펀드들의 아직 투자하지 않은 의무투자 금액 (소수점 첫째 자리까지)</span></div>
+          <div class="field"><label>1년 신규 펀드 출자액 (억)</label><input type="number" data-k="commit" step="10"><span class="hint">매년 새 펀드에 출자하는 약정 금액</span></div>
+          <div class="field"><label>매칭펀드 추가 드라이파우더 (억)</label><input type="number" data-k="matching" step="10"><span class="hint">2026년~2028년에만 적용</span></div>
+          <div class="field"><label>시작 연도 기결성 출자 차감 (억)</label><input type="number" data-k="commitDeduct" step="10"><span class="hint">올해 출자 계획 중 이미 결성되어 시트에 반영된 펀드의 약정액 합 — 이중계산 방지</span></div>
+        </div>
+        <div class="sub-h">신규 출자 펀드의 타겟 stage 비율 (%) — 결성 연도별로 다르게 설정 가능</div>
+        <table class="tgt" style="max-width:560px">
+          <thead><tr><th>단계</th><th id="tyH0">–</th><th id="tyH1">–</th><th id="tyH2">–</th><th id="tyH3">이후</th></tr></thead>
+          <tbody>
+            <tr><td>Early</td><td><input type="number" data-k="tE0" step="5"></td><td><input type="number" data-k="tE1" step="5"></td><td><input type="number" data-k="tE2" step="5"></td><td><input type="number" data-k="tE3" step="5"></td></tr>
+            <tr><td>Growth</td><td><input type="number" data-k="tG0" step="5"></td><td><input type="number" data-k="tG1" step="5"></td><td><input type="number" data-k="tG2" step="5"></td><td><input type="number" data-k="tG3" step="5"></td></tr>
+            <tr><td>Late</td><td><input type="number" data-k="tL0" step="5"></td><td><input type="number" data-k="tL1" step="5"></td><td><input type="number" data-k="tL2" step="5"></td><td><input type="number" data-k="tL3" step="5"></td></tr>
+          </tbody>
+        </table>
+        <div style="display:flex;align-items:center;gap:14px;margin-top:8px;flex-wrap:wrap">
+          <button class="btn reset-btn" style="padding:7px 10px;font-size:12px" onclick="suggestTargets()">단계별 최적 출자 비율 자동 계산</button>
+          <span class="mini-note" id="targetSum" style="text-align:left;margin-top:0"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 소진 패턴 -->
+    <div class="acc" data-acc>
+      <div class="acc-hd">③ (투자 속도) 펀드는 얼마나 빨리 돈을 쓰는가 <span class="caret">▶</span></div>
+      <div class="acc-body">
+        <div class="note" style="margin-bottom:10px">
+          펀드는 결성 후 4년에 걸쳐 드라이파우더를 나눠씁니다. (근거: 기존 펀드 분석 결과 <b>1년차 20% → 2년차 30% → 3년차 20% → 4년차 30%</b> 속도)<br>
+          </div>
+        <div class="field-grid" style="grid-template-columns:repeat(4,1fr);max-width:520px">
+          <div class="field"><label>1년차 (%)</label><input type="number" data-k="s0" step="5"></div>
+          <div class="field"><label>2년차 (%)</label><input type="number" data-k="s1" step="5"></div>
+          <div class="field"><label>3년차 (%)</label><input type="number" data-k="s2" step="5"></div>
+          <div class="field"><label>4년차 (%)</label><input type="number" data-k="s3" step="5"></div>
+        </div>
+        <div class="mini-note" id="schedSum" style="text-align:left"></div>
+      </div>
+    </div>
+
+    <!-- 판정 기준 -->
+    <div class="acc" data-acc>
+      <div class="acc-hd">④ (판정 기준) 몇 년치 드라이파우더를 갖고 있어야 적정한가 <span class="caret">▶</span></div>
+      <div class="acc-body">
+        <div class="note" style="margin-bottom:10px">
+          드라이파우더가 <b>연간 필요금액의 몇 년치</b>냐로 판정합니다. 예를 들어 "최소 2년치는 있어야 한다"면 아래 최소값을 2.0으로 바꾸세요.<br>
+          최소값보다 적으면 <b>부족</b>(드라이파우더가 모자랄 위험), 최대값보다 많으면 <b>과잉</b>(드라이파우더가 필요 이상으로 묶임)으로 판정됩니다.
+        </div>
+        <div class="field-grid" style="grid-template-columns:repeat(2,1fr);max-width:400px">
+          <div class="field"><label>최소 몇 년치 (이보다 적으면 부족)</label><input type="number" data-k="minY" step="0.05"></div>
+          <div class="field"><label>최대 몇 년치 (이보다 많으면 과잉)</label><input type="number" data-k="maxY" step="0.05"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 관리 -->
+    <div class="acc" data-acc>
+      <div class="acc-hd">⑤ (관리) 기준 정보 <span class="caret">▶</span></div>
+      <div class="acc-body">
+        <div class="field-grid">
+          <div class="field"><label>시뮬레이션 시작 연도</label><input type="number" id="admY0" step="1" min="2026" max="2035"></div>
+          <div class="field" style="grid-column:1/-1"><label>① 수요 근거 문구</label><input type="text" id="admEvidence"><span class="hint">① 패널 괄호 안에 표시되는 근거 설명 · **텍스트**로 감싸면 굵게 표시</span></div>
+        </div>
+        <button class="btn reset-btn" style="margin-top:12px" onclick="resetAdmin()">기준 정보 초기화</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 방법론 ============ -->
+  <div class="card">
+    <div class="card-hd">계산 방법 · 자료 출처</div>
+    <div class="note">
+      <b>드라이파우더 흐름:</b> 연말 드라이파우더 = 연초 드라이파우더 + 신규 확보(배수×출자액 + 매칭펀드) − 그해 실제 투자<br>
+      <b>그해 실제 투자:</b> 기존 펀드(실제 소진율이 표준 곡선 20→50→70→100%의 어디까지 왔는지 보고 남은 구간을 이어서 소진) + 신규 펀드(배수×출자액 × 연차별 투자 속도 비율)<br>
+      <b>연간 필요금액:</b> 기업별 라운드 총 금액 × 충당률 × 성공률<br>
+      <b>확보 년치:</b> 5개년(<span id="methYears">2026~2030</span>) 평균 연말 드라이파우더 ÷ 연간 필요금액<br>
+      <b>실제 투자 비율:</b> 연간 필요금액 중 실제로 투자되는 비율 = 5개년 평균 실제 투자금액 ÷ 연간 필요금액<br>
+      <b>드라이파우더 연간 증감:</b> 연평균 공급(배수×출자액 + 매칭펀드) − 연평균 소진(실제 투자) — 양수면 매년 쌓이고, 음수면 줄어듦<br>
+      <b>단계별 수급:</b> 단계별 실제 투자 = 기존 펀드(단계별 잔여 × 연도 비율, 시트 O~Q열) + 신규 펀드(소진 × 타겟 stage 비율) — 충족률 = 단계별 실제 투자 ÷ 단계별 필요금액<br><br>
+      <span style="color:var(--gray2)">데이터 업데이트 원천: dcamp 출자펀드 현황 - 연관기업투자 시트</span>
+    </div>
+  </div>
+</div>
+
+<script src="funds_data.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// [데이터 설정 블록 — B층] 원본 엑셀이 갱신되면 이 블록의 숫자만 교체하세요
+// 갱신 절차: ① 공유 드라이브의 원본 엑셀 갱신 → ② 아래 숫자 교체 → ③ 재배포
+// ═══════════════════════════════════════════════════════════════════
+
+// 데이터 기준일 — 숫자를 교체할 때마다 반드시 함께 갱신 (화면 상단에 표시됨)
+const DATA_ASOF = '2026-06-30';
+
+// ① 기존 펀드 리스트 — 잔여 드라이파우더를 보유한 펀드만 (원 단위 → 억 환산)
+//    원천: (종합) 재단연관기업_투자시뮬레이션_2026.xlsx > "4. 연관기업시뮬레이션_raw" 시트 펀드별 표
+//    rem = 잔여투자금액(억) · ob = 의무투자금액(억)
+//    현재 드라이파우더 기본값 = 아래 rem 전체 합계 (자동 계산 — 별도 수정 불필요)
+//    기존 펀드의 연도별 집행 = "진도 기반" 자동 산출:
+//      실제 소진율(1 − 잔여/의무)이 표준 소진 곡선(③의 비율 누적, 기본 20→50→70→100%)의
+//      어디까지 왔는지 찾고, 남은 구간을 시작 연도부터 이어서 소진합니다.
+//      · 빨리 쓴 펀드(예: 소진율 88%) → 잔여를 첫해에 전액 집행
+//      · 계획대로/늦은 펀드 → 남은 스케줄 비율대로 배분 (잔여 전액이 4년 내 소진)
+//    결성연도(vintage)는 결성예정 펀드 판별용 (집행 계산에는 소진율만 사용)
+//    갱신법: 집행 발생 → rem 수정 / 신규 출자 완료 → 행 추가 / 전액 소진 → 행 삭제
+//    e·g·l = 단계별(Early/Growth/Late) 잔여투자금액(억) — 시트 O~Q열, e+g+l = rem
+const FUNDS = [
+  {name:'롯데-FRONT1 스타트업 펀드', rem:14.893274, ob:72.0, vintage:2021, e:14.893274, g:0.0, l:0.0},
+  {name:'트랜스링크-DAY1 투자조합V', rem:3.504919, ob:72.0, vintage:2022, e:2.453443, g:1.051476, l:0.0},
+  {name:'하나-제피러스 프론트원 스타트업 펀드', rem:10.998748, ob:90.0, vintage:2023, e:5.499374, g:3.299624, l:2.19975},
+  {name:'캡스톤 스케일업 투자조합', rem:8.994109, ob:50.0, vintage:2023, e:0.0, g:4.497055, l:4.497055},
+  {name:'케이디비 퀀텀 모빌리티 밸류체인 오픈이노베이션펀드', rem:25.000174, ob:30.0, vintage:2024, e:12.500087, g:7.500052, l:5.000035},
+  {name:'스마일게이트로켓부스터3호', rem:25.501181, ob:50.0, vintage:2024, e:25.501181, g:0.0, l:0.0},
+  {name:'2024 에이스톤 미래환경 투자조합', rem:29.973567, ob:60.0, vintage:2024, e:8.99207, g:10.490748, l:10.490748},
+  {name:'스타트업 코리아 IBK-스틱테크챔피언펀드', rem:14.998831, ob:125.0, vintage:2025, e:7.499415, g:2.999766, l:4.499649},
+  {name:'스타트업 코리아 비전 2024 펀드', rem:50.0, ob:50.0, vintage:2025, e:20.0, g:15.0, l:15.0},
+  {name:'스타트업코리아 카카오 코파일럿펀드', rem:90.000392, ob:100.0, vintage:2025, e:57.960252, g:32.04014, l:0.0},
+  {name:'아이엠-에스제이 세이브어스 벤처펀드', rem:90.0, ob:90.0, vintage:2025, e:36.0, g:36.0, l:18.0},
+  {name:'베이스업템포벤처투자조합', rem:40.0, ob:40.0, vintage:2025, e:40.0, g:0.0, l:0.0},
+  {name:'성장금융 캡스톤 2025 딥테크 디캠프 투자조합', rem:94.501305, ob:112.5, vintage:2025, e:66.150913, g:28.350391, l:0.0},
+  {name:'Krew Capital Venture Fund I', rem:42.0, ob:42.0, vintage:2023, e:42.0, g:0.0, l:0.0},
+  {name:'DGDV FUND Ⅲ', rem:28.5, ob:28.5, vintage:2023, e:21.375, g:5.7, l:1.425},
+  {name:'인터밸류8호 딥테크 창업기업 투자조합', rem:94.99969, ob:100.0, vintage:2025, e:66.499783, g:18.999938, l:9.499969},
+  {name:'퀀텀-KIF 12호 AI 펀드', rem:100.0, ob:100.0, vintage:2025, e:30.0, g:30.0, l:40.0},
+  {name:'에이벤처스 AX 유니콘 투자조합', rem:109.968474, ob:180.0, vintage:2025, e:43.98739, g:43.98739, l:21.993695},
+  {name:'엘앤에스 K-Semi 르네상스 투자조합', rem:29.997134, ob:60.0, vintage:2026, e:2.999713, g:17.998281, l:8.99914},
+  {name:'아이엠엠 스타트업 벤처펀드 제2호', rem:67.886399, ob:100.0, vintage:2026, e:0.0, g:54.309119, l:13.57728},
+  {name:'라구나 문화신기술 펀드 제7호', rem:44.997968, ob:75.0, vintage:2025, e:26.998781, g:17.999187, l:0.0}
+];
+
+// ② 시뮬레이션 시작 연도 — 화면 '조건 변경 > ⑤ (관리) 기준 정보'에서 변경 가능 (기본 2026)
+
+// ③ 매칭펀드가 공급되는 연도 — 고정 정책값 (연 180억 × 2026~2028년, 변동 없음 · 원본 엑셀 참조 불필요)
+const MATCH_YEARS = [2026,2027,2028];
+
+// ═══════════════════════ 설정 블록 끝 ═══════════════════════
+
+// ===================== 기본 가정 =====================
+const DEFAULTS = {
+  // 수요 (단위: 억 / 건 / %)
+  avgE:10, cntE:32, rateE:100, succE:100,
+  avgG:76, cntG:19, rateG:20,  succG:50,
+  avgL:115,cntL:8,  rateL:30,  succL:50,
+  // 공급 (억)
+  dp0:Math.round(FUNDS.reduce((a,f)=>a+f.rem,0)*10)/10, commit:200, matching:180,
+  // 집행 속도 (%)
+  s0:20, s1:30, s2:20, s3:30,
+  // 판정 기준 (년치)
+  minY:1.85, maxY:2.15,
+  // 시작 연도 기결성 출자 차감 (억) — 올해 출자 계획 중 이미 결성돼 시트에 반영된 펀드의 출자액 합
+  commitDeduct:0,
+  // 신규 출자 펀드의 타겟 stage 비율 (%) — 결성 연도별 설정 (0=시작 연도, 1=+1년, 2=+2년, 3=이후)
+  // 아래 값은 임시 초기값일 뿐, 접속·기본값 복원 시 '단계별 최적 출자 비율 자동 계산'이
+  // 자동 실행되어 현재 데이터 기준 최적값으로 대체됩니다.
+  tE0:15, tG0:80, tL0:5,
+  tE1:15, tG1:75, tL1:10,
+  tE2:15, tG2:75, tL2:10,
+  tE3:15, tG3:75, tL3:10
+};
+let P = {...DEFAULTS};
+
+// ===================== 관리 항목 (⑤ — 이 브라우저에 저장) =====================
+const ADMIN_DEFAULT = { y0: 2026,
+  evidence: '근거: 배치 1~6기 49개사 92개 라운드 분석 — 디캠프 직접투자·출자펀드 몫: **Seed 12% · Pre-A 24% · Series A 18% · Series B 이상 29%**' };
+let ADMIN = {...ADMIN_DEFAULT};
+try { ADMIN = {...ADMIN_DEFAULT, ...JSON.parse(localStorage.getItem('dpSimAdmin')||'{}')}; } catch(e){}
+function saveAdmin(){ try{ localStorage.setItem('dpSimAdmin', JSON.stringify(ADMIN)); }catch(e){} }
+function years(){ return Array.from({length:9},(_,i)=>ADMIN.y0+i); }
+// 근거 문구 렌더링 — **텍스트** 로 감싼 부분은 굵게 표시 (HTML은 이스케이프 후 처리)
+function renderEvidence(){
+  const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  document.getElementById('evidenceTxt').innerHTML=esc(ADMIN.evidence).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+}
+function applyAdmin(){
+  renderEvidence();
+  document.getElementById('admY0').value=ADMIN.y0;
+  document.getElementById('admEvidence').value=ADMIN.evidence;
+}
+function resetAdmin(){ ADMIN={...ADMIN_DEFAULT}; saveAdmin(); applyAdmin(); updateSyncBadge(); render(); }
+
+// ===================== dcamp 출자펀드 현황 시트 실시간 동기화 =====================
+// 접속 시 api/funds(배포: 서버리스 함수 / 로컬: sync_funds.py가 만든 파일)에서
+// 펀드별 잔여투자금액·결성연도를 읽어 내장 FUNDS를 최신값으로 교체합니다.
+let SYNC={state:'off', time:'', warns:[]};
+function updateSyncBadge(){
+  const el=document.getElementById('asof'); if(!el) return;
+  if(SYNC.state==='ok'){
+    el.innerHTML=`dcamp 출자펀드 현황 시트 연동됨 (${SYNC.time})`+
+      (SYNC.warns.length?` · <span style="color:var(--warn)" title="${SYNC.warns.join(' / ')}">확인 필요 ${SYNC.warns.length}건</span>`:'');
+  } else if(SYNC.state==='snap'){
+    el.innerHTML=`dcamp 출자펀드 현황 시트 데이터 (${SYNC.time} 업데이트 · 로컬 모드)`+
+      (SYNC.warns.length?` · <span style="color:var(--warn)" title="${SYNC.warns.join(' / ')}">확인 필요 ${SYNC.warns.length}건</span>`:'');
+  } else if(SYNC.state==='fail'){
+    el.textContent=DATA_ASOF+' · 내장 데이터 (dcamp 출자펀드 현황 시트 연결 안 됨)';
+  } else el.textContent=DATA_ASOF;
+}
+function applySheetData(j){
+  const nrm=s=>String(s).toLowerCase().replace(/\s+/g,'');
+  const baked=FUNDS.slice();
+  const findBaked=n=>{const c=nrm(n);return baked.find(b=>{const a=nrm(b.name);return a===c||a.startsWith(c)||c.startsWith(a);});};
+  const merged=[], warns=[];
+  for(const f of (j.funds||[])){
+    const b=findBaked(f.name);
+    const vin=f.vintage||(b&&b.vintage)||null;
+    if(!vin){ warns.push(`${f.name}: 결성연도 확인 불가 — 결성예정으로 보고 제외`); continue; }
+    const row={name:f.name, rem:f.rem, ob:(f.ob||(b&&b.ob)||f.rem), vintage:vin};
+    // 단계별 잔여 (시트 O~Q열) — 없으면 내장 비율로, 그것도 없으면 신규 타겟 비율로 배분
+    if(typeof f.e==='number' && (f.e+f.g+f.l)>0){ row.e=f.e; row.g=f.g; row.l=f.l; }
+    else if(b && (b.e+b.g+b.l)>0){ const k=f.rem/b.rem; row.e=b.e*k; row.g=b.g*k; row.l=b.l*k; }
+    else { row.e=f.rem*P.tE0/100; row.g=f.rem*P.tG0/100; row.l=f.rem*P.tL0/100; }
+    merged.push(row);
+  }
+  if(merged.length<5) return null;
+  FUNDS.length=0; FUNDS.push(...merged);
+  P.dp0=Math.round(FUNDS.reduce((a,f)=>a+f.rem,0)*10)/10;
+  const dp0In=document.querySelector('input[data-k="dp0"]'); if(dp0In) dp0In.value=P.dp0;
+  return {time:String(j.updated||'').replace('T',' ').slice(0,16), warns};
+}
+async function loadFunds(){
+  try{
+    const r=await fetch('api/funds',{cache:'no-store'});
+    if(!r.ok) throw new Error('http '+r.status);
+    const ok=applySheetData(await r.json());
+    if(!ok) throw new Error('bad data');
+    SYNC={state:'ok', time:ok.time, warns:ok.warns};
+  }catch(e){
+    // fetch가 막히는 환경(파일로 직접 열기 등)에서는 sync_funds.py가 만든 스냅샷 사용
+    const snap=window.FUNDS_SNAPSHOT || null;
+    const ok=snap ? applySheetData(snap) : null;
+    SYNC = ok ? {state:'snap', time:ok.time, warns:ok.warns} : {state:'fail', time:'', warns:[]};
+  }
+  updateSyncBadge(); render();
+  suggestTargets();   // 접속 시 타겟 stage 비율을 현재 데이터 기준 최적값으로 자동 설정
+}
+
+
+// ===================== 모델 =====================
+function annualDemand(){
+  const e = P.avgE*P.cntE*(P.rateE/100)*(P.succE/100);
+  const g = P.avgG*P.cntG*(P.rateG/100)*(P.succG/100);
+  const l = P.avgL*P.cntL*(P.rateL/100)*(P.succL/100);
+  return {e,g,l,total:e+g+l};
+}
+function sched(){ return [P.s0,P.s1,P.s2,P.s3].map(x=>x/100); }
+// 기존 펀드별 연도 비율 — "진도 기반" 규칙:
+// 표준 소진 곡선(③의 비율 누적, 기본 20→50→70→100%) 위에서 펀드의 실제 소진율이
+// 어디까지 왔는지 찾고, 남은 구간을 시작 연도부터 이어서 소진합니다.
+// 빨리 쓴 펀드(소진율↑)는 잔여를 앞당겨 집행, 늦은 펀드는 남은 스케줄대로 배분.
+// 반환값은 "잔여 대비 비율"이라 Σ = 1 (잔여 전액이 4년 내 보존 소진).
+function fundRates(f){
+  const p=sched();
+  const cum=[0, p[0], p[0]+p[1], p[0]+p[1]+p[2], p[0]+p[1]+p[2]+p[3]];
+  const spent=Math.max(0, Math.min(1, 1-f.rem/f.ob));
+  const remR=1-spent;
+  if(remR<1e-9) return [1,0,0,0];
+  let k=3;
+  for(let i=0;i<4;i++){ if(spent<cum[i+1]-1e-12){ k=i; break; } }
+  const out=[0,0,0,0]; let cursor=spent;
+  for(let y=0; y<4 && k+y<4; y++){
+    out[y]=Math.max(0,(cum[k+y+1]-cursor)/remR);
+    cursor=cum[k+y+1];
+  }
+  return out;
+}
+// 기존 펀드 연도별 집행 합계 = Σ(연도 비율 × 잔여투자금액) — 시작 연도(ADMIN.y0)부터 4개년
+function basePipeline(t){
+  const i=t-ADMIN.y0; if(i<0||i>3) return 0;
+  return FUNDS.reduce((a,f)=>a+fundRates(f)[i]*f.rem,0);
+}
+// 기존 펀드의 단계별(Early/Growth/Late) 연도 집행 = Σ(연도 비율 × 단계별 잔여) — 원본 시트 구조와 동일
+function stageBase(t){
+  const i=t-ADMIN.y0; if(i<0||i>3) return [0,0,0];
+  let e=0,g=0,l=0;
+  for(const f of FUNDS){ const r=fundRates(f)[i]; e+=r*(f.e||0); g+=r*(f.g||0); l+=r*(f.l||0); }
+  return [e,g,l];
+}
+// 해당 연도에 새로 결성되는 펀드의 출자액 — 시작 연도는 기결성분(commitDeduct)을 차감
+function commitOf(f){ return Math.max(0, P.commit - (f===ADMIN.y0 ? (P.commitDeduct||0) : 0)); }
+// 결성 연도 f의 신규 펀드에 적용되는 타겟 stage 비율 (원본 D20:F28처럼 코호트별 적용)
+function targetRatio(f){
+  const i=Math.max(0, Math.min(3, f-ADMIN.y0));
+  return [P['tE'+i], P['tG'+i], P['tL'+i]].map(x=>(x||0)/100);
+}
+// 타겟 비율의 출처·신선도 추적 — src: 'auto'(최적 계산 결과) | 'manual'(사용자 직접 입력)
+// n: 마지막 최적 계산 때의 배수 · stale: 계산 이후 조건(수요·공급·속도·시작 연도) 변경됨
+// block: 최적 계산이 차단된 사유 (투자 속도 합 ≠ 100% 등)
+let TGT={src:'auto', n:null, stale:false, block:''};
+// 열별(결성 코호트별) 신규 지출 프로파일(5개년) — suggestTargets(탐색)와 render("(완료)" 표시)가 공유
+function spendCols(N){
+  const sc=sched(), yrs=years().slice(0,5);
+  return [0,1,2,3].map(ci=>{
+    const cohorts= ci<3? [ADMIN.y0+ci] : Array.from({length:6},(_,x)=>ADMIN.y0+3+x);
+    return yrs.map(t=>cohorts.reduce((a,f)=>{
+      const off=t-f; return a+((off>=0&&off<sc.length)? N*commitOf(f)*sc[off] : 0);
+    },0));
+  });
+}
+// 신규 펀드 소진의 단계별 분해 = Σ(코호트 소진 × 그 코호트의 타겟 비율)
+function consumeS(t,N){
+  const sc=sched(); const out=[0,0,0];
+  for(let f=ADMIN.y0; f<=Math.min(t,ADMIN.y0+8); f++){
+    const off=t-f;
+    if(off<0 || off>=sc.length) continue;
+    const c=N*commitOf(f)*sc[off], r=targetRatio(f);
+    for(let s=0;s<3;s++) out[s]+=c*r[s];
+  }
+  return out;
+}
+function consume(t,N){
+  const sc=sched(); let s=0;
+  for(let f=ADMIN.y0; f<=Math.min(t,ADMIN.y0+8); f++){
+    const off=t-f;
+    if(off>=0 && off<sc.length) s += N*commitOf(f)*sc[off];
+  }
+  return s;
+}
+function trajectory(N){
+  let dp=P.dp0; const rows=[];
+  for(const t of years()){
+    const sec = N*commitOf(t) + (MATCH_YEARS.includes(t)? P.matching:0);
+    const ex  = basePipeline(t) + consume(t,N);
+    const end = dp + sec - ex;
+    rows.push({t,begin:dp,sec,ex,end});
+    dp=end;
+  }
+  return rows;
+}
+function metrics(N){
+  const rows=trajectory(N);
+  const first5=rows.slice(0,5);
+  const avgDP=first5.reduce((a,b)=>a+b.end,0)/5;
+  const avgEx=first5.reduce((a,b)=>a+b.ex,0)/5;   // 5개년 평균 실제 투자 (소진)
+  const avgIn=first5.reduce((a,b)=>a+b.sec,0)/5;  // 5개년 평균 신규 확보 (공급)
+  const demand=annualDemand().total;
+  const cov=avgDP/demand;
+  const flowCov=avgEx/demand;                      // 실제 투자 비율 (참고 지표)
+  // 단계별 실제 투자 = 기존 펀드(단계별 잔여×연도 비율) + 신규 펀드(코호트별 타겟 비율 적용)
+  // exSY = 연도별 [Early,Growth,Late] (5개년) · exS = 5개년 평균
+  const exSY=[], exS=[0,0,0];
+  for(const r of first5){
+    const sb=stageBase(r.t), cs=consumeS(r.t,N);
+    const y=[0,1,2].map(s=>sb[s]+cs[s]);
+    exSY.push(y);
+    for(let s=0;s<3;s++) exS[s]+=y[s]/5;
+  }
+  return {rows,avgDP,avgEx,avgIn,net:avgIn-avgEx,cov,flowCov,demand,exS,exSY};
+}
+function judge(cov){
+  const lo=P.minY.toFixed(2), hi=P.maxY.toFixed(2);
+  if(cov<P.minY) return {chip:'c-bad', vcls:'v-bad', label:'부족', desc:`쌓아둔 드라이파우더가 연간 필요금액의 ${lo}년치(최소 기준)에 못 미침`};
+  if(cov>P.maxY) return {chip:'c-warn',vcls:'v-warn',label:'과잉', desc:`쌓아둔 드라이파우더가 연간 필요금액의 ${hi}년치(최대 기준)를 초과`};
+  return {chip:'c-ok', vcls:'v-ok', label:'적정', desc:`쌓아둔 드라이파우더가 연간 필요금액의 ${lo}~${hi}년치 범위 안`};
+}
+const fmt=(x,d=0)=>x.toLocaleString('ko-KR',{minimumFractionDigits:d,maximumFractionDigits:d});
+
+// ===================== 렌더 =====================
+let chart;
+function render(){
+  const N=parseFloat(document.getElementById('nSlider').value);
+  document.getElementById('nVal').textContent=N.toFixed(1);
+  const pct=((N-1.0)/(2.0-1.0))*100;
+  document.getElementById('nSlider').style.setProperty('--pct',pct+'%');
+
+  const m=metrics(N), v=judge(m.cov), d=annualDemand();
+
+  // KPI
+  document.getElementById('kpiAvgDP').textContent=fmt(m.avgDP,0)+'억';
+  document.getElementById('kpiCov').textContent=m.cov.toFixed(2)+'년치';
+  document.getElementById('kpiDemand').textContent=fmt(d.total,0)+'억';
+  document.getElementById('kpiDemandSub').textContent=`Early ${fmt(d.e,0)}억 · Growth ${fmt(d.g,0)}억 · Late ${fmt(d.l,0)}억`;
+  document.getElementById('kpiSupply').textContent=fmt(N*P.commit,0)+'억';
+  document.getElementById('kpiSupplySub').textContent=`${N.toFixed(1)}배 × 출자액 ${fmt(P.commit,0)}억`;
+  const flowPct=m.flowCov*100;
+  document.getElementById('kpiFlow').textContent=flowPct.toFixed(0)+'%';
+  document.getElementById('kpiFlowSub').textContent=`연간 필요 ${fmt(d.total,0)}억 중 평균 ${fmt(m.avgEx,0)}억 실제 투자`;
+
+  // verdict
+  const vb=document.getElementById('verdict');
+  vb.className='verdict '+v.vcls;
+  document.getElementById('vMain').textContent=v.label;
+  document.getElementById('vDesc').textContent=v.desc;
+
+  // 결론 배너 (슬라이더·가정에 따라 동적 갱신)
+  const o=s=>`<b style="color:var(--or)">${s}</b>`;
+  const advice = v.label==='적정'
+    ? '현재 설정이 균형 범위 안에 있습니다.'
+    : v.label==='부족'
+    ? '배수를 높여 드라이파우더 확보를 늘리는 방안을 검토하세요.'
+    : '배수를 낮춰 불필요하게 묶이는 돈을 줄이는 방안을 검토하세요.';
+  document.getElementById('conclusion').innerHTML=
+    `현재 드라이파우더 ${o(fmt(P.dp0,1)+'억')}은 연간 필요금액 ${o(fmt(d.total,0)+'억')}의 약 ${(P.dp0/d.total).toFixed(2)}년치입니다. `+
+    `배수를 ${o(N.toFixed(1)+'배')}로 설정하면 5개년 평균 연말 드라이파우더가 ${o(fmt(m.avgDP,0)+'억')}(${o(m.cov.toFixed(2)+'년치')})으로 ${o('『'+v.label+'』')} 판정입니다. `+advice;
+  document.getElementById('vFlow').textContent = `필요금액의 ${flowPct.toFixed(0)}%가 실제 투자됨`;
+
+  // 수급 비교 (공급 vs 소진, 현재 배수 기준)
+  const netTxt = m.net>=0
+    ? `드라이파우더가 매년 약 <code>+${fmt(m.net,0)}억</code>씩 쌓입니다`
+    : `드라이파우더가 매년 약 <code>−${fmt(-m.net,0)}억</code>씩 줄어듭니다`;
+  // 데이터 정합성 경고: 기존 펀드 집행 계획 합계가 현재 드라이파우더를 넘으면 입력 오류
+  const baseSum=years().slice(0,4).reduce((a,t)=>a+basePipeline(t),0);
+  const warn = baseSum>P.dp0+0.01
+    ? `<br><span style="color:var(--bad);font-weight:700">⚠ 데이터 점검 필요: 기존 펀드 집행 파이프라인 합계(${fmt(baseSum,0)}억)가 현재 드라이파우더(${fmt(P.dp0,0)}억)보다 큽니다 — 설정 블록 또는 현재 드라이파우더 입력값을 확인하세요</span>`
+    : '';
+  document.getElementById('flowCompare').innerHTML=
+    `<b>드라이파우더 공급·소진 비교</b> (배수 ${N.toFixed(1)}배 · ${ADMIN.y0}년~${ADMIN.y0+4}년 연평균)<br>`+
+    `공급(새로 확보되는 드라이파우더) <code>${fmt(m.avgIn,0)}억/년</code> vs 소진(실제 투자) <code>${fmt(m.avgEx,0)}억/년</code> → ${netTxt}`+warn;
+  // 시작 연도에 따라 바뀌는 라벨들
+  document.getElementById('kpiAvgDPSub').textContent=`${ADMIN.y0}년~${ADMIN.y0+4}년 연말 잔액 평균`;
+  document.getElementById('chartNote').textContent=`${ADMIN.y0}년~${ADMIN.y0+3}년: 기존 펀드 잔여분 + 신규 펀드 소진 · ${ADMIN.y0+4}년~: 신규 펀드 소진만 (모두 ③ 투자 속도 적용)`;
+  document.getElementById('methYears').textContent=`${ADMIN.y0}년~${ADMIN.y0+4}`;
+
+  // 수요 공식
+  document.getElementById('demandFormula').innerHTML=
+    `Early : ${P.avgE}억 × ${P.cntE}개사 × ${P.rateE}% × ${P.succE}% = <code>${fmt(d.e,1)}억</code><br>`+
+    `Growth : ${P.avgG}억 × ${P.cntG}개사 × ${P.rateG}% × ${P.succG}% = <code>${fmt(d.g,1)}억</code><br>`+
+    `Late : ${P.avgL}억 × ${P.cntL}개사 × ${P.rateL}% × ${P.succL}% = <code>${fmt(d.l,1)}억</code><br>`+
+    `<b>연간 필요금액 합계 = <code>${fmt(d.total,1)}억</code></b>`;
+
+  // 판정 기준 표시
+  document.getElementById('fMin').textContent=P.minY.toFixed(2);
+  document.getElementById('fMax').textContent=P.maxY.toFixed(2);
+  const ss=sched().reduce((a,b)=>a+b,0);
+  document.getElementById('schedSum').innerHTML=`4년 합계 ${fmt(ss*100,0)}% ${Math.abs(ss-1)>0.001?'<span style="color:var(--bad)">(100%가 되어야 전액 투자)</span>':'<span style="color:var(--ok)">✓</span>'}`;
+
+  // 신규 타겟 비율: 연도 헤더 + 지출 없는 열 표시 + 연도별 합계 100% 검사 + 재계산 배지
+  const colDead=spendCols(N).map(sp=>!sp.some(v=>v>0));
+  for(let i=0;i<3;i++) document.getElementById('tyH'+i).textContent=`${ADMIN.y0+i}년 결성${colDead[i]?' (완료)':''}`;
+  document.getElementById('tyH3').textContent=`${ADMIN.y0+3}년~ 결성${colDead[3]?' (완료)':''}`;
+  for(let i=0;i<4;i++) for(const pfx of ['tE','tG','tL']){
+    const el=document.querySelector(`input[data-k="${pfx+i}"]`); if(el) el.disabled=colDead[i];
+  }
+  const sums=[0,1,2,3].map(i=>(P['tE'+i]||0)+(P['tG'+i]||0)+(P['tL'+i]||0));
+  const tsBad=sums.some(s=>Math.abs(s-100)>0.001);
+  let tgtMsg=`연도별 합계: ${sums.map(s=>fmt(s,0)+'%').join(' · ')} `+
+    (tsBad?'<span style="color:var(--bad)">(각 연도 합계가 100%가 되어야 전액 배분)</span>':'<span style="color:var(--ok)">✓</span>');
+  if(TGT.block)
+    tgtMsg+=`<br><span style="color:var(--bad)">⚠ ${TGT.block}</span>`;
+  else if(TGT.stale || (TGT.src==='auto' && TGT.n!==null && Math.abs(TGT.n-N)>0.001))
+    tgtMsg+=`<br><span style="color:var(--warn)">⚠ 조건이 바뀌었습니다 — 현재 비율은 이전 조건 기준입니다. '단계별 최적 출자 비율 자동 계산'을 다시 실행하세요</span>`;
+  if(colDead.some(Boolean))
+    tgtMsg+=`<br><span style="color:var(--gray)">※ (완료) 열은 신규 예정 출자가 없어서 비율이 적용되지 않습니다</span>`;
+  document.getElementById('targetSum').innerHTML=tgtMsg;
+
+  renderStage(m,d);
+  renderTable(N);
+  renderChart(m,d.total);
+}
+
+// ===================== 단계별 수급 =====================
+function renderStage(m,d){
+  const wrap=document.getElementById('stageWrap'); if(!wrap) return;
+  const yrs=years().slice(0,5);
+  const names=['Early (극초기 · Seed~Pre-A)','Growth (초기 · Series A)','Late (중기 · Series B 이상)'];
+  const dem=[d.e,d.g,d.l];
+  const cell=(v,demS)=>{ const p=demS>0? v/demS*100 : 0; return `${fmt(v,0)}억 (${p.toFixed(0)}%)`; };
+  let html='<table><thead><tr><th>단계</th><th>연간 필요금액</th>'
+    + yrs.map(y=>`<th>${y}년</th>`).join('')
+    + '<th>5개년 평균</th></tr></thead><tbody>';
+  for(let s=0;s<3;s++){
+    html+=`<tr><td>${names[s]}</td><td>${fmt(dem[s],0)}억</td>`
+      + yrs.map((y,i)=>`<td>${cell(m.exSY[i][s],dem[s])}</td>`).join('')
+      + `<td><b>${cell(m.exS[s],dem[s])}</b></td></tr>`;
+  }
+  html+='</tbody></table>';
+  wrap.innerHTML=html;
+}
+
+// 단계별 최적 출자 비율 자동 계산 — 4개 연도 열의 조합을 "동시에" 전수 탐색해
+// 다음 네 조건을 가장 잘 만족하는 배분을 선택:
+//   ① 어떤 해·단계에서도 충족률이 100%를 넘지 않도록 (초과 시 강한 벌점)
+//   ② 각 해 안에서 세 단계의 충족률이 최대한 고르게 (단계 간 편차 최소화)
+//   ③ 각 단계에 최소 10% 이상 배분 — 5% 단위 (극단적 제안 방지, 실무 제약)
+//   ④ 연속 연도 간 각 단계 비율 변화 ±10%p 이내 (급격한 출자 정책 변경 방지)
+// 예외 처리: 투자 속도 합 ≠ 100% → 계산 차단 · 수요 0인 단계 → 하한(10%) 고정 ·
+//            신규 지출 0인 결성 열 → 탐색 제외 (화면에 "(완료)" 표시)
+function suggestTargets(){
+  const N=parseFloat(document.getElementById('nSlider').value);
+  // 투자 속도 합계 ≠ 100%면 기존 펀드 잔여 보존이 깨져 기초값이 왜곡되므로 계산 차단
+  const ss=sched().reduce((a,b)=>a+b,0);
+  if(Math.abs(ss-1)>0.001){
+    TGT.block=`투자 속도 4년 합계가 ${fmt(ss*100,0)}%입니다 — 100%로 맞춰야 최적 계산을 실행할 수 있습니다`;
+    render(); return;
+  }
+  const d=annualDemand(); const dem=[d.e,d.g,d.l];
+  const dead=dem.map(x=>!(x>0));   // 수요가 0(또는 음수)인 단계
+  if(dead.every(Boolean)){
+    TGT.block='연간 필요금액이 0이라 최적 계산을 할 수 없습니다';
+    render(); return;
+  }
+  const yrs=years().slice(0,5);
+  const MIN=10, SM=10;   // 단계별 최소 비율(%) · 연도 간 최대 변화 폭(%p)
+  // 후보 배분 (5% 단위, 각 단계 ≥ MIN) — 수요 0인 단계는 하한(MIN)에 고정
+  const cands=[];
+  for(let e=MIN; e<=100-2*MIN; e+=5)
+    for(let g=MIN; g<=100-e-MIN; g+=5){
+      const c=[e,g,100-e-g];
+      if(dead.some((dd,k)=>dd && c[k]!==MIN)) continue;
+      cands.push(c);
+    }
+  const near=cands.map(a=>{
+    const out=[];
+    cands.forEach((b,j)=>{ if(Math.abs(a[0]-b[0])<=SM&&Math.abs(a[1]-b[1])<=SM&&Math.abs(a[2]-b[2])<=SM) out.push(j); });
+    return out;
+  });
+  // 기초: 기존 펀드 단계별 집행(5개년×3단계, 평탄화) + 열별 신규 지출 프로파일
+  const base=new Float64Array(15);
+  yrs.forEach((t,i)=>{ const sb=stageBase(t); for(let k=0;k<3;k++) base[i*3+k]=sb[k]; });
+  const spend=spendCols(N);
+  const liveCols=[0,1,2,3].filter(ci=>spend[ci].some(v=>v>0));   // 신규 지출이 있는 열만 탐색
+  if(!liveCols.length){
+    TGT.block='신규 출자액이 0이라 최적 계산을 할 수 없습니다';
+    render(); return;
+  }
+  // 살아있는 열×후보별 기여 행렬 (미리 계산)
+  const M=liveCols.map(ci=>cands.map(c=>{
+    const m=new Float64Array(15);
+    for(let i=0;i<5;i++) for(let k=0;k<3;k++) m[i*3+k]=spend[ci][i]*c[k]/100;
+    return m;
+  }));
+  const live=[0,1,2].filter(k=>!dead[k]);   // 편차는 수요가 있는 단계끼리만 비교
+  const nLive=live.length, cbuf=new Float64Array(3);   // 점수 계산용 버퍼 (전수 탐색 중 할당 방지)
+  // 일상 경로(세 단계 모두 수요 있음)는 인라인 계산이 훨씬 빠름 — 수요 0 단계가 있을 때만 일반형 사용
+  const scoreOf= nLive===3 ? A=>{
+    let s=0;
+    for(let i=0;i<5;i++){
+      const c0=A[i*3]/dem[0]*100, c1=A[i*3+1]/dem[1]*100, c2=A[i*3+2]/dem[2]*100;
+      const mean=(c0+c1+c2)/3;
+      for(const c of [c0,c1,c2]){ const ov=Math.max(0,c-100); s+=ov*ov*100+(c-mean)*(c-mean); }
+    }
+    return s;
+  } : A=>{
+    let s=0;
+    for(let i=0;i<5;i++){
+      let sum=0;
+      for(let li=0;li<nLive;li++){ const c=A[i*3+live[li]]/dem[live[li]]*100; cbuf[li]=c; sum+=c; }
+      const mean=sum/nLive;
+      for(let li=0;li<nLive;li++){ const c=cbuf[li], ov=c>100?c-100:0; s+=ov*ov*100+(c-mean)*(c-mean); }
+    }
+    return s;
+  };
+  // 전수 탐색 — ±10%p 연속성 제약은 살아있는 열끼리 연결
+  const nL=liveCols.length;
+  let best=null, bestScore=Infinity;
+  if(nL===4){
+    // 일상 경로(4개 열 모두 지출 있음): 평탄한 4중 루프 (재귀보다 수 배 빠름)
+    const A0=new Float64Array(15), A1=new Float64Array(15), A2=new Float64Array(15), A3=new Float64Array(15);
+    for(let i0=0;i0<cands.length;i0++){
+      const m0=M[0][i0]; for(let x=0;x<15;x++) A0[x]=base[x]+m0[x];
+      for(const i1 of near[i0]){
+        const m1=M[1][i1]; for(let x=0;x<15;x++) A1[x]=A0[x]+m1[x];
+        for(const i2 of near[i1]){
+          const m2=M[2][i2]; for(let x=0;x<15;x++) A2[x]=A1[x]+m2[x];
+          for(const i3 of near[i2]){
+            const m3=M[3][i3]; for(let x=0;x<15;x++) A3[x]=A2[x]+m3[x];
+            const s=scoreOf(A3);
+            if(s<bestScore-1e-9){ bestScore=s; best=[i0,i1,i2,i3]; }
+          }
+        }
+      }
+    }
+  } else {
+    // 예외 경로(지출 없는 열 존재): 살아있는 열만 재귀 탐색
+    const As=Array.from({length:nL},()=>new Float64Array(15));
+    const pick=new Array(nL);
+    const allIdx=cands.map((_,j)=>j);
+    (function go(lv){
+      const list= lv===0? allIdx : near[pick[lv-1]];
+      const prev= lv===0? base : As[lv-1];
+      for(const j of list){
+        const A=As[lv], m=M[lv][j];
+        for(let x=0;x<15;x++) A[x]=prev[x]+m[x];
+        pick[lv]=j;
+        if(lv===nL-1){
+          const s=scoreOf(A);
+          if(s<bestScore-1e-9){ bestScore=s; best=pick.slice(); }
+        } else go(lv+1);
+      }
+    })(0);
+  }
+  if(!best) return;
+  // 살아있는 열에 최적값 기록, 지출 없는 열은 가장 가까운 살아있는 열 값으로 채움(계산에 영향 없음)
+  const val=new Array(4).fill(null);
+  liveCols.forEach((ci,li)=>{ val[ci]=cands[best[li]]; });
+  for(let ci=0;ci<4;ci++) if(!val[ci]){
+    for(let d2=1;d2<4&&!val[ci];d2++) val[ci]=val[ci+d2]||val[ci-d2]||null;
+  }
+  val.forEach((c,ci)=>{ P['tE'+ci]=c[0]; P['tG'+ci]=c[1]; P['tL'+ci]=c[2]; });
+  TGT={src:'auto', n:N, stale:false, block:''};
+  syncInputs(); render();
+}
+
+function renderTable(curN){
+  const body=document.getElementById('scenBody'); body.innerHTML='';
+  const scen=[1.0,1.2,1.5,2.0];
+  if(!scen.includes(Math.round(curN*10)/10)) scen.push(Math.round(curN*10)/10);
+  scen.sort((a,b)=>a-b);
+  for(const N of scen){
+    const m=metrics(N), v=judge(m.cov);
+    const tr=document.createElement('tr');
+    if(Math.abs(N-curN)<0.001) tr.className='cur';
+    const fp=m.flowCov*100;
+    const netCell = m.net>=0 ? `매년 ${fmt(m.net,0)}억 쌓임` : `매년 ${fmt(-m.net,0)}억 줄어듦`;
+    tr.innerHTML=`<td>${N.toFixed(1)}배</td><td>${fmt(m.avgDP,0)}억</td><td>${m.cov.toFixed(2)}</td>`+
+      `<td>${fmt(m.avgEx,0)}억<br><span style="color:var(--gray);font-size:10.5px">연간 필요금액 중 ${fp.toFixed(0)}% 투자</span></td>`+
+      `<td>${netCell}</td>`+
+      `<td><span class="chip ${v.chip}">${v.label}</span></td>`;
+    body.appendChild(tr);
+  }
+}
+
+function renderChart(m,demand){
+  const labels=m.rows.map(r=>r.t);
+  const dp=m.rows.map(r=>+r.end.toFixed(1));
+  const ex=m.rows.map(r=>+r.ex.toFixed(1));
+  const need=labels.map(()=>+demand.toFixed(1));
+  const bandLo=labels.map(()=>+(demand*P.minY).toFixed(1));
+  const bandHi=labels.map(()=>+(demand*P.maxY).toFixed(1));
+  document.getElementById('chartLegend').innerHTML=
+    `<span class="legend-dot" style="background:var(--or)"></span>연말 드라이파우더 `+
+    `<span class="legend-dot" style="background:#111"></span>연간 필요금액 `+
+    `<span class="legend-dot" style="background:#cfe6d8"></span>적정 범위 `+
+    `<span class="legend-dot" style="background:rgba(136,136,136,.35)"></span>그해 실제 투자`;
+  const data={labels,datasets:[
+    {label:'적정 범위 상한',data:bandHi,borderWidth:0,pointRadius:0,fill:'+1',backgroundColor:'rgba(26,122,74,.10)',order:5},
+    {label:'적정 범위 하한',data:bandLo,borderWidth:0,pointRadius:0,fill:false,order:5},
+    {label:'연말 드라이파우더',data:dp,borderColor:'#FF5831',backgroundColor:'#FF5831',borderWidth:3,pointRadius:4,pointBackgroundColor:'#fff',pointBorderColor:'#FF5831',pointBorderWidth:2,tension:.25,order:1},
+    {label:'연간 필요금액',data:need,borderColor:'#111',borderWidth:1.5,borderDash:[6,4],pointRadius:0,order:2},
+    {label:'그해 실제 투자',data:ex,type:'bar',backgroundColor:'rgba(136,136,136,.22)',borderColor:'rgba(136,136,136,.4)',borderWidth:1,order:4,yAxisID:'y'}
+  ]};
+  const opts={responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:false},
+      tooltip:{callbacks:{
+        label:c=>`${c.dataset.label}: ${fmt(c.parsed.y,0)}억`,
+        // 툴팁 색상 박스를 상단 범례 색과 동일하게 통일
+        labelColor:c=>{
+          const col = c.dataset.label==='연말 드라이파우더' ? '#FF5831'
+                    : c.dataset.label==='연간 필요금액' ? '#111111'
+                    : 'rgba(136,136,136,.6)';
+          return {borderColor:col, backgroundColor:col};
+        }
+      },filter:i=>!i.dataset.label.includes('적정 범위')}},
+    scales:{y:{beginAtZero:true,grid:{color:'#eee'},ticks:{callback:v=>fmt(v,0)+'억',font:{size:11}}},
+      x:{grid:{display:false},ticks:{font:{size:11}}}}};
+  if(chart){chart.data=data;chart.options=opts;chart.update();}
+  else chart=new Chart(document.getElementById('dpChart'),{type:'line',data,options:opts});
+}
+
+// ===================== 입력 바인딩 =====================
+function syncInputs(){
+  document.querySelectorAll('input[data-k]').forEach(inp=>{
+    inp.value=P[inp.dataset.k];
+  });
+}
+// 최적 계산 결과를 낡게 만드는 입력들 (목적함수에 들어가는 값) — 변경 시 "재계산 필요" 배지
+const TGT_KEYS=['avgE','cntE','rateE','succE','avgG','cntG','rateG','succG','avgL','cntL','rateL','succL','commit','commitDeduct','s0','s1','s2','s3'];
+document.querySelectorAll('input[data-k]').forEach(inp=>{
+  inp.addEventListener('input',()=>{
+    let v=parseFloat(inp.value);
+    if(inp.dataset.k==='dp0' && !isNaN(v)) v=Math.round(v*10)/10; // 소수점 첫째 자리까지만
+    if(!isNaN(v)){
+      P[inp.dataset.k]=v;
+      const k=inp.dataset.k;
+      if(/^t[EGL][0-3]$/.test(k)){ TGT.src='manual'; TGT.n=null; TGT.block=''; }   // 수동 입력 — 이후 자동 재계산으로 덮어쓰지 않음
+      else if(TGT_KEYS.includes(k)){ TGT.stale=true; TGT.block=''; }
+    }
+    render();
+  });
+});
+document.getElementById('nSlider').addEventListener('input',render);
+// 슬라이더에서 손을 떼면: 자동 최적값 상태면 새 배수 기준으로 재계산, 수동 입력 상태면 값 보존 + 배지만
+document.getElementById('nSlider').addEventListener('change',()=>{
+  if(TGT.src==='auto') suggestTargets();
+  else { TGT.stale=true; render(); }
+});
+document.querySelectorAll('[data-acc] .acc-hd').forEach(hd=>{
+  hd.addEventListener('click',()=>hd.parentElement.classList.toggle('open'));
+});
+function resetAll(){ P={...DEFAULTS}; syncInputs(); document.getElementById('nSlider').value=1.5; render(); suggestTargets(); }
+
+// 관리(⑤) 입력 바인딩
+document.getElementById('admY0').addEventListener('input',e=>{const v=parseInt(e.target.value);if(v>=2026&&v<=2035){ADMIN.y0=v;saveAdmin();TGT.stale=true;render();}});
+document.getElementById('admEvidence').addEventListener('input',e=>{ADMIN.evidence=e.target.value;saveAdmin();renderEvidence();});
+
+// init
+applyAdmin();
+syncInputs();
+render();
+loadFunds();   // dcamp 출자펀드 현황 시트 최신값으로 갱신 (실패 시 내장 데이터 유지)
+</script>
+</body>
+</html>

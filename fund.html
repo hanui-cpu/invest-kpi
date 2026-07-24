@@ -1,0 +1,2262 @@
+<!DOCTYPE html>
+<!-- 펀드팀 전용 페이지 — 투자팀 페이지는 index.html로 분리 관리 (2026-07-24) -->
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fund KPI Dashboard · d.camp</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<!-- [19차+] dom-to-image-more 전면 교체 — SVG foreignObject 기반, 활성 유지 보수 -->
+<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.6.0/dist/dom-to-image-more.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<style>
+@font-face{
+  font-family:'SUIT Variable';
+  src:url('/fonts/SUIT-Variable.ttf') format('truetype-variations'),
+      url('/fonts/SUIT-Variable.ttf') format('truetype');
+  font-weight:100 900;
+  font-style:normal;
+  font-display:swap;
+}
+:root{
+  --bg:#F2F1EC;--sf:#FFFFFF;--sf2:#ECEAE3;
+  --black:#111111;--black2:#333333;--gray:#888888;--gray2:#BBBBBB;
+  --or:#FF5831;--or-lt:#FFF0EB;--or-dk:#D94020;
+  --ok:#1A7A4A;--ok-bg:#E4F5EC;
+  --warn:#A05A00;--warn-bg:#FFF4E0;
+  --bad:#C0281C;--bad-bg:#FDECEA;
+  --border:#DDDBD3;--r:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:'SUIT Variable',-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',Roboto,sans-serif}
+body{background:var(--bg);color:var(--black);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.hd{background:#111;color:#fff;padding:0 32px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:200}
+.hd-brand{display:flex;align-items:center;gap:10px}
+.hd-logo{font-size:20px;font-weight:600;color:var(--or)}
+.hd-div{width:1px;height:16px;background:#444}
+.hd-title{font-size:13px;color:#aaa}
+.hd-r{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;font-family:inherit}
+.btn-sync{background:var(--or);color:#fff}
+.btn-sync:hover{background:var(--or-dk)}
+.btn-sync:disabled{background:#555;cursor:default}
+.btn-ghost{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2)}
+.btn-ghost:hover{background:rgba(255,255,255,.18)}
+/* 의무투자 배수 시뮬레이터 버튼 — PDF(고스트)보다 강조된 주황 채움 */
+.btn-sim{background:var(--or);color:#fff;font-weight:700;text-decoration:none;box-shadow:0 2px 10px rgba(255,88,49,.45)}
+.btn-sim:hover{background:var(--or-dk);box-shadow:0 2px 12px rgba(255,88,49,.6)}
+.btn-outline{background:transparent;color:var(--black);border:1px solid var(--border)}
+.btn-outline:hover{background:var(--sf2)}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:7px}
+.btn-or{background:var(--or);color:#fff}
+.btn-or:hover{background:var(--or-dk)}
+.wrap{max-width:1440px;margin:0 auto;padding:24px 32px}
+.sbar{display:flex;align-items:center;gap:14px;background:var(--sf);border-radius:var(--r);padding:13px 20px;margin-bottom:20px;border:1px solid var(--border)}
+.sdot{width:7px;height:7px;border-radius:50%;background:#ccc;flex-shrink:0;transition:all .3s}
+.sdot.ok{background:#2ECE6E;box-shadow:0 0 0 3px rgba(46,206,110,.15)}
+.sdot.err{background:#FF4040;box-shadow:0 0 0 3px rgba(255,64,64,.15)}
+.sdot.spin{background:var(--or);animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.s-txt{font-size:12px;font-weight:500;color:var(--black2)}
+.s-sub{font-size:11px;color:var(--gray)}
+.s-time{font-size:11px;color:var(--gray2);margin-left:auto;font-family:'SUIT Variable',sans-serif}
+/* [14차] 2026 AI 브리핑 */
+.briefing{background:var(--sf);border:1px solid var(--sf2);border-radius:var(--r);padding:16px 18px;margin-bottom:16px}
+.brief-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.brief-tag{flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.5px;color:#fff;background:#111;border-radius:6px;padding:4px 8px;line-height:1.4;margin-top:1px}
+.brief-headline{flex:1 1 240px;font-size:15px;font-weight:600;color:var(--black);letter-spacing:-.3px;line-height:1.45}
+.brief-legend{flex-shrink:0;display:flex;gap:12px;align-items:center;margin-top:2px}
+.brief-legend .lg{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--gray);white-space:nowrap}
+.brief-legend .lg::before{content:'';width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.brief-legend .lg.green::before{background:var(--ok)}
+.brief-legend .lg.yellow::before{background:var(--or)}
+.brief-legend .lg.red::before{background:var(--bad)}
+@media(max-width:600px){.brief-legend{width:100%;margin-top:4px}}
+.brief-headline.loading{color:var(--gray2);font-weight:500}
+.brief-lights{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.bl-cell{border:1px solid var(--sf2);border-left-width:4px;border-radius:8px;padding:10px 12px;background:var(--bg)}
+.bl-cell.green{border-left-color:var(--ok)}
+.bl-cell.yellow{border-left-color:var(--or)}
+.bl-cell.red{border-left-color:var(--bad)}
+.bl-cell.off{opacity:.45}
+.bl-top{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.bl-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.bl-cell.green .bl-dot{background:var(--ok)}
+.bl-cell.yellow .bl-dot{background:var(--or)}
+.bl-cell.red .bl-dot{background:var(--bad)}
+.bl-label{font-size:11px;font-weight:600;color:var(--black2)}
+.bl-val{font-size:20px;font-weight:700;color:var(--black);letter-spacing:-.5px}
+.bl-unit{font-size:12px;font-weight:500;color:var(--gray);margin-left:2px}
+.bl-sub{font-size:11px;color:var(--gray);margin-top:3px}
+.brief-insight{margin-top:14px;padding-top:14px;border-top:1px solid var(--sf2)}
+.brief-row{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.5}
+.brief-row+.brief-row{margin-top:8px}
+.brief-ico{flex-shrink:0;font-size:10px;font-weight:700;color:var(--black2);background:var(--sf2);border-radius:5px;padding:3px 7px;line-height:1.5;margin-top:1px}
+.brief-ico-prop{color:#fff;background:var(--or)}
+.brief-diag span:last-child{color:var(--black2)}
+.brief-prop ul{margin:0;padding-left:16px}
+.brief-prop li{color:var(--black);margin-bottom:3px}
+.brief-prop li:last-child{margin-bottom:0}
+.brief-note{margin-top:10px;font-size:11px;color:var(--gray2)}
+@media(max-width:960px){.brief-lights{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.brief-lights{grid-template-columns:1fr}}
+.goal-banner{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+@media(max-width:960px){.goal-banner{grid-template-columns:repeat(2,1fr)!important}}
+@media(max-width:600px){.goal-banner{grid-template-columns:1fr!important}}
+.goal-box{border-radius:var(--r);padding:18px 24px;display:flex;align-items:center;gap:16px}
+.goal-box.g1{background:#111}
+.goal-box.g2{background:var(--or)}
+.goal-icon{font-size:26px;opacity:.85;flex-shrink:0}
+.goal-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;opacity:.55;color:#fff;margin-bottom:3px}
+.goal-val{font-size:24px;font-weight:600;color:#fff;letter-spacing:-.5px}
+.goal-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:3px}
+.goal-formula{display:inline-block;background:rgba(255,255,255,.15);border-radius:5px;padding:2px 8px;font-size:10px;font-family:'SUIT Variable',sans-serif;color:rgba(255,255,255,.8);margin-top:5px}
+.fbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:var(--sf);border-radius:var(--r);padding:14px 20px;margin-bottom:20px;border:1px solid var(--border)}
+.flabel{font-size:10px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.fsel{border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-weight:500;color:var(--black);background:var(--bg);font-family:inherit;cursor:pointer}
+.fsel:focus{outline:none;border-color:var(--or)}
+.seg{display:flex;background:var(--bg);border:1px solid var(--border);border-radius:9px;overflow:hidden;padding:2px;gap:2px}
+.sb{padding:6px 13px;font-size:12px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--gray);font-family:inherit;transition:all .15s;white-space:nowrap;border-radius:7px}
+.sb.on{background:#111;color:#fff}
+.sb:hover:not(.on){background:var(--sf2);color:var(--black)}
+.fdiv{width:1px;height:20px;background:var(--border);align-self:center;margin:0 6px}
+.fgroup{display:flex;align-items:center;gap:8px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.card{background:var(--sf);border-radius:var(--r);padding:20px 22px;border:1px solid var(--border);transition:box-shadow .2s}
+.card:hover{box-shadow:0 4px 20px rgba(0,0,0,.06)}
+/* [수정1] accent 클래스는 유지하되 예산 카드에서 제거 — 다크 카드가 필요한 다른 용도를 위해 클래스는 남김 */
+.card.accent{background:#111;border-color:#111}
+.card.accent .cl,.card.accent .cs{color:rgba(255,255,255,.45)}
+.card.accent .cv,.card.accent .cu{color:#fff}
+.cl{font-size:10px;font-weight:600;color:var(--gray);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px}
+.cv{font-size:32px;font-weight:600;color:var(--black);line-height:1;letter-spacing:-1px}
+.cu{font-size:14px;font-weight:400;color:var(--gray);margin-left:4px}
+.cs{font-size:11px;color:var(--gray2);margin-top:6px}
+.gauge-wrap{margin-top:12px;position:relative}
+.gauge-bg{height:5px;background:var(--sf2);border-radius:3px;overflow:visible;position:relative}
+.gauge-fill{height:100%;border-radius:3px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+.gauge-lbl{display:flex;justify-content:space-between;font-size:10px;color:var(--gray2);margin-top:6px;font-family:'SUIT Variable',sans-serif;position:relative}
+/* [수정4] 핵심 집중도 카드 - 건수 기준 뱃지 */
+.conc-basis-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;background:#E8F5FF;color:#1D4ED8;letter-spacing:.2px}
+/* [수정4] 목표 vs 실적 비교 박스 */
+.conc-compare{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 12px}
+.conc-box{border-radius:10px;padding:11px 10px;text-align:center}
+.conc-box-target{background:var(--sf2)}
+.conc-box-actual{background:var(--or-lt)}
+.conc-box-lbl{font-size:9px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.conc-box-val{font-size:26px;font-weight:700;line-height:1;letter-spacing:-1px}
+.conc-box-sub{font-size:9px;color:var(--gray2);margin-top:3px}
+.panel{background:var(--sf);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;margin-bottom:16px}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.ph-t{font-size:13px;font-weight:600}
+.pb{padding:16px 20px}
+/* [추가] 아코디언 */
+.panel.collapsible .ph{cursor:pointer;user-select:none;transition:background .15s}
+.panel.collapsible .ph:hover{background:var(--bg)}
+.panel.collapsible .ph-chev{display:inline-block;margin-left:8px;font-size:11px;color:var(--gray);transition:transform .25s cubic-bezier(.4,0,.2,1)}
+.panel.collapsible.collapsed .ph-chev{transform:rotate(-90deg)}
+.panel.collapsible.collapsed .ph{border-bottom-color:transparent}
+.panel.collapsible .panel-body{overflow:hidden;transition:max-height .28s cubic-bezier(.4,0,.2,1),opacity .2s ease,padding .2s ease;max-height:4000px;opacity:1}
+.panel.collapsible.collapsed .panel-body{max-height:0;opacity:0;padding-top:0;padding-bottom:0}
+.leg{display:flex;gap:14px;font-size:11px;color:var(--gray);flex-wrap:wrap}
+.li{display:flex;align-items:center;gap:5px}
+.lb{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{font-size:10px;font-weight:600;color:var(--gray);letter-spacing:.5px;text-transform:uppercase;padding:10px 14px;text-align:right;background:var(--bg);border-bottom:1px solid var(--border);white-space:nowrap}
+th:first-child,th:nth-child(2){text-align:left}
+td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:12px;text-align:right;color:var(--black2);font-variant-numeric:tabular-nums}
+td:first-child,td:nth-child(2){text-align:left}
+/* [추가] 명시적 정렬 유틸리티 — 헤더·셀 모두 적용 */
+th.tl,td.tl{text-align:left!important}
+th.tc,td.tc{text-align:center!important}
+th.tr,td.tr{text-align:right!important}
+/* [추가] 숫자 폰트 굵기 살짝 업 */
+td.mono{font-weight:500}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#FAFAF7}
+tr.key-row td{background:#FFFBF8}
+tr.key-row:hover td{background:#FFF4EE}
+tr.sum-row td{background:var(--bg);font-weight:600;border-top:2px solid var(--border)}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap}
+.bok{background:var(--ok-bg);color:var(--ok)}
+.bwarn{background:var(--warn-bg);color:var(--warn)}
+.bbad{background:var(--bad-bg);color:var(--bad)}
+.bnone{background:var(--sf2);color:var(--gray)}
+.bstar{background:var(--or-lt);color:var(--or);font-weight:700}
+.tgt-in{width:58px;border:1px solid var(--border);border-radius:6px;padding:4px 7px;font-size:12px;font-weight:600;text-align:center;font-family:'SUIT Variable',sans-serif;background:var(--bg);color:var(--black)}
+.tgt-in:focus{outline:none;border-color:var(--or);background:#fff}
+.ach-cell{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.ach-num{font-size:13px;font-weight:600;font-family:'SUIT Variable',sans-serif}
+.ach-bar{width:60px;height:3px;background:var(--sf2);border-radius:2px;overflow:hidden}
+.ach-fill{height:100%;border-radius:2px;transition:width .4s}
+.ach-formula{font-size:10px;color:var(--gray);font-family:'SUIT Variable',sans-serif}
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+.ov.open{display:flex}
+.modal{background:#fff;border-radius:18px;width:100%;max-width:500px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.2)}
+.mh{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.mh-t{font-size:15px;font-weight:600}
+.mclose{cursor:pointer;color:var(--gray);font-size:22px;line-height:1;background:none;border:none;font-family:inherit}
+.mb{padding:18px 22px;overflow-y:auto;flex:1}
+.mf{padding:13px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.tip{font-size:12px;color:var(--gray);background:var(--bg);border-radius:9px;padding:10px 14px;margin-bottom:14px;line-height:1.7}
+.trow{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:7px}
+.trow.key{background:var(--or-lt);border-color:#FFCCBB}
+.trow-name{flex:1;font-size:13px;font-weight:500}
+.trow input{width:68px;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;text-align:center;font-family:'SUIT Variable',sans-serif;background:#fff}
+.trow input:focus{outline:none;border-color:var(--or)}
+.modal-sum{font-size:12px;padding:8px 13px;border-radius:8px;margin-bottom:13px;font-weight:600;font-family:'SUIT Variable',sans-serif}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120px);background:#111;color:#fff;padding:12px 22px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,.2);z-index:9999;transition:transform .35s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.tok{background:var(--ok)}
+.toast.terr{background:var(--bad)}
+.empty-state{text-align:center;padding:48px;color:var(--gray)}
+/* [5차 수정] SUIT Variable 단일 폰트 — 숫자도 SUIT 사용 (slashed-zero 제거) */
+.mono,.numeric-value{
+  font-family:'SUIT Variable',sans-serif;
+  font-variant-numeric:tabular-nums;     /* 숫자 폭만 고정 (모양 변경 X) */
+  font-feature-settings:"tnum" 1;
+  font-weight:500;
+}
+.cv,.goal-val,.cu{
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum" 1;
+}
+table td,table th{font-variant-numeric:tabular-nums}
+
+/* [5차 수정] 상세 영역 2단 그리드 — 투자(2fr) / 회수(1fr) */
+.detail-split{display:grid;grid-template-columns:2fr 1fr;gap:24px;align-items:start;margin-top:4px}
+.detail-col-head{display:flex;align-items:center;justify-content:space-between;padding:0 2px 10px;border-bottom:2px solid var(--black);margin-bottom:12px}
+.detail-col-head .dc-t{font-size:17px;font-weight:700;letter-spacing:-.3px}
+.detail-col-head .dc-sub{font-size:11px;color:var(--gray);font-weight:500}
+.kpi-row{display:grid;gap:14px;margin-bottom:16px}
+.kpi-row.invest{grid-template-columns:1fr 1fr}
+.kpi-row.exit{grid-template-columns:1fr}
+/* 비활성 상태 */
+.goal-box.disabled,.card.disabled{opacity:.4;pointer-events:none}
+.detail-col.disabled .panel{opacity:.45}
+.detail-col.disabled .detail-col-head{opacity:.6}
+@media(max-width:900px){.detail-split{grid-template-columns:1fr;gap:16px}.kpi-row.invest{grid-template-columns:1fr 1fr}}
+@media(max-width:1100px){.cards{grid-template-columns:repeat(2,1fr)!important}}
+@media(max-width:960px){.goal-banner{grid-template-columns:repeat(2,1fr)!important}}
+@media(max-width:600px){.cards{grid-template-columns:1fr!important}.goal-banner{grid-template-columns:1fr!important}.wrap{padding:14px}}
+@media print{.hd .hd-r,.fbar,.sbar{display:none!important}.wrap{padding:0}.panel,.card{border:1px solid #ddd}}
+/* [추가] 극초기·회수 상세 테이블 — 셀 줄바꿈 방지 (좁아지면 .tw가 가로 스크롤) */
+#panel-early table td, #panel-exit table td{white-space:nowrap}
+/* [추가] 회수 요약 3카드 — 줄바꿈 방지 + 정렬 통일 */
+.exit-summary-cards .card{display:flex;flex-direction:column}
+.exit-summary-cards .cl,
+.exit-summary-cards .cs,
+.exit-summary-cards .cv-wrap{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exit-summary-cards .cv-wrap{display:flex;align-items:baseline;gap:4px;min-height:36px}
+.exit-summary-cards .cv{font-size:30px;letter-spacing:-.5px}
+.exit-summary-cards .cu{margin-left:0;font-size:14px}
+.exit-summary-cards .gauge-wrap{margin-top:auto}
+@media(max-width:780px){
+  .exit-summary-cards .cv{font-size:24px}
+  .exit-summary-cards .cu{font-size:12px}
+  .exit-summary-cards .cs{font-size:10.5px}
+}
+/* [추가] 도메인 셀 호버 툴팁 — 포함 기업 목록 (body에 fixed로 표시) */
+.dom-cell{cursor:help}
+#dom-tooltip{
+  position:fixed;display:none;z-index:9999;pointer-events:none;
+  min-width:180px;max-width:320px;max-height:300px;overflow-y:auto;
+  background:#1F1F1F;color:#fff;border-radius:8px;padding:10px 12px;
+  box-shadow:0 6px 20px rgba(0,0,0,.22);
+  font-family:'SUIT Variable',sans-serif;font-size:12px;line-height:1.5;
+}
+#dom-tooltip .dom-tip-h{font-size:11px;font-weight:600;color:#FFD6C9;margin-bottom:6px;letter-spacing:.2px}
+#dom-tooltip ul{margin:0;padding-left:16px}
+#dom-tooltip li{margin:1px 0}
+#dom-tooltip .dom-tip-empty{color:#999;list-style:none;margin-left:-16px}
+
+/* [팀 전환 8차] 헤더 팀 탭 */
+.team-tabs{display:flex;background:rgba(255,255,255,.08);border-radius:9px;padding:3px;margin-left:14px;gap:2px}
+.team-tab{padding:7px 16px;font-size:12.5px;font-weight:600;border:none;background:transparent;color:#aaa;cursor:pointer;border-radius:7px;transition:all .15s;font-family:inherit;letter-spacing:.3px;white-space:nowrap}
+.team-tab:hover:not(.on){color:#fff;background:rgba(255,255,255,.08)}
+.team-tab.on{background:var(--or);color:#fff;box-shadow:0 1px 3px rgba(255,88,49,.3)}
+
+/* [팀 전환 8차] 팀 컨테이너 — 전환 시 fade */
+.team-section{animation:teamFadeIn .25s ease}
+@keyframes teamFadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* [펀드팀] 종합 득점률 박스 강조 */
+.goal-box.fund-total{background:linear-gradient(135deg,#FF5831 0%,#D94020 100%)}
+.goal-box.fund-total .goal-val{font-size:30px}
+.goal-box.fund-total .goal-label{opacity:.75;color:#fff}
+.goal-box.fund-sub{background:#1F1F1F}
+.goal-box.fund-sub .goal-label{color:rgba(255,255,255,.55)}
+
+/* [펀드팀] KPI 카드 메타 */
+.fund-meta-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--gray);margin-top:8px;gap:8px;flex-wrap:wrap}
+.fund-meta-pill{display:inline-flex;align-items:center;gap:5px;background:var(--bg);border-radius:14px;padding:3px 9px;font-size:10.5px;font-weight:600;color:var(--black2)}
+.fund-meta-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--or)}
+
+/* [펀드팀] 진척도 미니 막대 (테이블 셀 안) */
+.mini-bar{width:60px;height:5px;background:var(--sf2);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:6px}
+.mini-bar > span{display:block;height:100%;border-radius:3px}
+
+/* [펀드팀] KPI 종합 점수 미니 막대 */
+.fund-score-bars{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.fund-score-row{display:flex;align-items:center;gap:10px;font-size:11.5px}
+.fund-score-row .lbl{width:96px;flex-shrink:0;color:var(--gray);font-weight:500}
+.fund-score-row .bar-outer{flex:1;height:8px;background:var(--sf2);border-radius:5px;overflow:hidden;position:relative}
+.fund-score-row .bar-inner{height:100%;border-radius:5px;background:var(--or);transition:width .6s cubic-bezier(.4,0,.2,1)}
+.fund-score-row .val{width:56px;flex-shrink:0;text-align:right;font-weight:700;font-family:'SUIT Variable';font-variant-numeric:tabular-nums}
+.fund-score-row .weight{width:42px;flex-shrink:0;text-align:right;font-size:10px;color:var(--gray2);font-weight:600}
+
+/* [펀드팀] 게이지 색상 — 50% 미만 회색 */
+.gauge-fill.low{background:#BBBBBB!important}
+
+/* [17차] 득점률 산출식 각주 — 위 카드와 거리 좁힘 */
+.fund-score-footnote{
+  text-align:right;font-size:11px;color:var(--gray);
+  margin:-8px 2px 12px;font-style:italic;font-weight:500;
+}
+
+/* ========================================================
+   [19차/Plan C] 브라우저 native 인쇄 (PDF 저장) 전용 스타일
+   ======================================================== */
+@media print {
+  /* 페이지 크기/여백 — A4 가로 */
+  @page { size: A4 landscape; margin: 8mm; }
+
+  /* 모든 색상/배경 강제 출력 (배경 그래픽 옵션과 무관) */
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* 인쇄 제외 영역 */
+  .hd-r, #dom-tooltip, #toast,
+  .fund-cutoff-row select { display: none !important; }
+
+  /* 비활성 팀 숨김 (body 클래스로 제어) */
+  body.printing-fund #team-invest { display: none !important; }
+  body.printing-invest #team-fund { display: none !important; }
+
+  /* 접힌 아코디언 모두 펼침 */
+  .panel.collapsible.collapsed,
+  .panel.collapsible.collapsed .pb,
+  .panel.collapsible.collapsed .panel-body {
+    display: block !important;
+    visibility: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .ph-chev { display: none !important; }
+
+  /* 페이지 분할 방지 */
+  .panel, .goal-banner, .goal-box, .card,
+  .fund-detail-split > div,
+  .detail-split > div {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* body 배경 인쇄 강제 */
+  html, body { background: #F2F1EC !important; }
+
+  /* 본문 그리드/탭 보강 (cutoff 영역 표시) */
+  .team-tabs { display: none !important; }
+  .fund-cutoff-row { padding: 6px 12px !important; }
+}
+
+/* [15차] 펀드팀 기준일자 셀렉터 */
+.fund-cutoff-row{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 16px;background:#fff;
+  border:1px solid var(--line);border-radius:10px;
+  margin-bottom:14px;
+  font-family:inherit;flex-wrap:wrap;
+}
+.fund-cutoff-lbl{
+  font-size:12px;font-weight:700;color:var(--gray);
+  letter-spacing:.3px;
+}
+#fund-cutoff-select{
+  font-family:inherit;font-size:13px;font-weight:600;
+  padding:6px 10px;border:1px solid var(--line);border-radius:6px;
+  background:#fff;cursor:pointer;min-width:160px;color:var(--black);
+}
+#fund-cutoff-select:focus{outline:2px solid var(--or);outline-offset:1px;border-color:var(--or)}
+.fund-cutoff-chip{
+  font-size:11px;font-weight:700;color:var(--or);
+  background:#FFF1EC;padding:5px 12px;border-radius:999px;
+  font-variant-numeric:tabular-nums;letter-spacing:.2px;
+}
+.fund-cutoff-hint{
+  font-size:11px;color:var(--gray);margin-left:auto;
+}
+@media(max-width:780px){
+  .fund-cutoff-hint{display:none}
+  .fund-cutoff-row{gap:8px;padding:8px 12px}
+  #fund-cutoff-select{min-width:140px;font-size:12px}
+}
+
+/* [팀 전환 8차] 헤더 타이틀 조정 */
+@media(max-width:780px){
+  .hd{padding:0 16px}
+  .hd-title{display:none}
+  .team-tabs{margin-left:8px}
+  .team-tab{padding:6px 12px;font-size:11.5px}
+}
+
+/* [10차] 펀드팀 전용 3단 그리드 (전략도메인 / 국내GP / 해외GP) */
+/* minmax(0, 1fr) — 자식 min-content가 컬럼을 늘리지 않도록 강제 균등 */
+.fund-detail-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start;margin-top:4px}
+.fund-detail-split > .detail-col{min-width:0}
+@media(max-width:1200px){
+  .fund-detail-split{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+}
+@media(max-width:780px){
+  .fund-detail-split{grid-template-columns:1fr}
+}
+/* [10차] 좁아진 컬럼에서 KPI 카드 숫자 자동 축소 */
+.fund-detail-split .cv{font-size:26px;letter-spacing:-.5px}
+.fund-detail-split .cu{font-size:12px}
+.fund-detail-split .cl{font-size:10px}
+/* [10차] 좁아진 표 — 셀 폰트 살짝 ↓ */
+.fund-detail-split table td,
+.fund-detail-split table th{font-size:11.5px;padding:9px 10px}
+.fund-detail-split table th{font-size:9.5px;padding:8px 10px}
+/* [10차] detail-col-head 안의 부제목은 좁아지면 줄바꿈 허용 */
+.fund-detail-split .detail-col-head{flex-wrap:wrap;gap:4px}
+.fund-detail-split .detail-col-head .dc-sub{font-size:10.5px}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <div class="hd-brand">
+    <span class="hd-logo">dcamp</span>
+    <div class="hd-div"></div>
+    <span class="hd-title">KPI Dashboard</span>
+    <div class="team-tabs" role="tablist" aria-label="팀 선택">
+      <button class="team-tab" data-team="invest" onclick="location.href='index.html'" role="tab" aria-selected="false">투자팀</button>
+      <button class="team-tab on" data-team="fund" role="tab" aria-selected="true">펀드팀</button>
+    </div>
+  </div>
+  <div class="hd-r">
+    <button class="btn btn-sync" id="sync-btn" onclick="syncCurrentTeam()" style="display:none">데이터 새로고침</button>
+    <a class="btn btn-sim" id="drypowder-btn" href="drypowder.html">의무투자 배수 시뮬레이터</a>
+    <button class="btn btn-ghost" id="dl-pdf-btn" onclick="downloadPDF()">PDF 다운로드</button>
+    <button class="btn btn-ghost" id="dl-ppt-btn" onclick="downloadPPT()">PPT 다운로드</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- ====================== 펀드팀 ====================== -->
+<div id="team-fund" class="team-section">
+
+<!-- [15차] 기준일자 셀렉터 — 환율표 K39:K42에서 동적 주입, 누적 누계 -->
+<div class="fund-cutoff-row" id="fund-cutoff-row" style="display:none">
+  <span class="fund-cutoff-lbl">📅 기준일자</span>
+  <select id="fund-cutoff-select" onchange="onFundCutoffChange()" aria-label="기준일자 선택"></select>
+  <span class="fund-cutoff-chip" id="fund-cutoff-chip">—</span>
+  <span class="fund-cutoff-hint">26-01-01부터 기준일자까지의 누적 값</span>
+</div>
+
+<!-- 펀드팀 상단 목표 배너 4박스: 종합 득점률 + 3개 KPI -->
+<div class="goal-banner">
+  <div class="goal-box fund-total">
+    <div style="flex:1">
+      <div class="goal-label">2026년 펀드팀 종합 득점률</div>
+      <div class="goal-val" id="fund-total-val">—%</div>
+      <div class="goal-sub" id="fund-total-sub">전략도메인 50% · 국내GP 45% · 해외GP 5% 가중합</div>
+    </div>
+  </div>
+  <div class="goal-box fund-sub">
+    <div>
+      <div class="goal-label">KPI 1: 전략 도메인 집중 출자 득점률</div>
+      <div class="goal-val" id="fund-d-banner-val">—%</div>
+    </div>
+  </div>
+  <div class="goal-box fund-sub">
+    <div>
+      <div class="goal-label">KPI 2: 운용사 협력 - 국내 득점률</div>
+      <div class="goal-val" id="fund-gpd-banner-val">—%</div>
+    </div>
+  </div>
+  <div class="goal-box fund-sub">
+    <div>
+      <div class="goal-label">KPI 3: 운용사 협력 - 해외 득점률</div>
+      <div class="goal-val" id="fund-gpi-banner-val">—%</div>
+    </div>
+  </div>
+</div>
+<!-- [17차] 득점률 산출식 각주 -->
+<div class="fund-score-footnote">* 득점률 = 실적 / 목표 × 100%</div>
+
+<!-- [16차] 메타 바 삭제 — 상단 cutoff 칩과 중복 -->
+
+<!-- [17차] KPI 가중 득점 현황 패널 삭제 — 상단 스코어카드와 중복 -->
+
+<!-- [10차] 펀드팀 상세 — 3단 (전략도메인 50% / 국내GP 45% / 해외GP 5%) -->
+<div class="fund-detail-split">
+
+  <!-- ============ 1️⃣ 전략 도메인 집중 출자 (50%) ============ -->
+  <div class="detail-col" id="fund-col-domain">
+    <div class="detail-col-head">
+      <span class="dc-t">전략 도메인 집중 출자</span>
+      <span class="dc-sub">비중 50% · 목표 80%</span>
+    </div>
+
+    <div class="kpi-row exit">
+      <div class="card">
+        <div class="cl">출자 펀드 약정금액의 13개 도메인 집중 금액</div>
+        <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
+          <span class="cv numeric-value" id="fund-d-actual">—</span>
+          <span class="cu">억 / 기준 <span id="fund-d-target" class="numeric-value">—</span>억</span>
+        </div>
+        <div class="cs" id="fund-d-sub">달성률 —%</div>
+        <div class="gauge-wrap">
+          <div class="gauge-bg"><div class="gauge-fill" id="fund-d-bar" style="background:var(--or);width:0%"></div></div>
+          <div class="gauge-lbl"><span id="fund-d-pct" class="numeric-value">0%</span><span id="fund-d-target-lbl">목표 80%</span></div>
+        </div>
+        <div class="fund-meta-row">
+          <span class="fund-meta-pill"><span class="dot"></span>13개 핵심 도메인</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- [11차] 출자 펀드별 약정금액 — 도넛 차트 + 중앙 합계 -->
+    <div class="panel">
+      <div class="ph">
+        <span class="ph-t" id="fund-d-chart-title">출자 펀드별 약정금액 구성</span>
+        <span style="font-size:11px;color:var(--gray)">단위: 억원</span>
+      </div>
+      <div class="pb">
+        <div id="fund-d-chart-wrap" style="position:relative;display:none;height:340px">
+          <canvas id="fund-d-chart"></canvas>
+          <div id="fund-d-chart-center" style="position:absolute;top:118px;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;width:160px;line-height:1.2">
+            <!-- 중앙 텍스트 렌더 시 채워짐 -->
+          </div>
+        </div>
+        <div id="fund-d-chart-empty" style="text-align:center;padding:52px;color:var(--gray)">
+          <div style="font-size:14px;font-weight:500">데이터를 불러오는 중입니다</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 출자 펀드 상세 (아코디언) -->
+    <div class="panel collapsible collapsed" id="fund-d-detail-panel">
+      <div class="ph" onclick="togglePanel('fund-d-detail-panel')">
+        <span class="ph-t" id="fund-d-detail-title">출자 펀드 상세<span class="ph-chev">▼</span></span>
+        <span style="font-size:11px;color:var(--gray)">2026 출자 약정 펀드</span>
+      </div>
+      <div class="panel-body">
+        <div class="tw">
+          <table>
+            <thead><tr>
+              <th class="tl">펀드명</th>
+              <th class="tl">GP</th>
+              <th class="tc">조합상태</th>
+              <th>약정 (억)</th>
+            </tr></thead>
+            <tbody id="fund-d-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- /1️⃣ 전략 도메인 -->
+
+  <!-- ============ 2️⃣ 운용사 협력 - 국내 (45%) ============ -->
+  <div class="detail-col" id="fund-col-gpd">
+    <div class="detail-col-head">
+      <span class="dc-t">운용사 협력 - 국내</span>
+      <span class="dc-sub">비중 45% · 목표 110%</span>
+    </div>
+
+    <!-- 국내 GP KPI -->
+    <div class="kpi-row exit">
+      <div class="card">
+        <div class="cl">국내 운용사 - 재단 연관기업 의무투자</div>
+        <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
+          <span class="cv numeric-value" id="fund-gpd-actual">—</span>
+          <span class="cu">억 / 기준 <span id="fund-gpd-target" class="numeric-value">—</span>억</span>
+        </div>
+        <div class="cs" id="fund-gpd-sub">달성률 —%</div>
+        <div class="gauge-wrap">
+          <div class="gauge-bg"><div class="gauge-fill" id="fund-gpd-bar" style="background:var(--or);width:0%"></div></div>
+          <div class="gauge-lbl"><span id="fund-gpd-pct" class="numeric-value">0%</span><span id="fund-gpd-target-lbl">목표 110%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 국내 펀드별 진척 (아코디언) -->
+    <div class="panel collapsible collapsed" id="fund-gpd-panel">
+      <div class="ph" onclick="togglePanel('fund-gpd-panel')">
+        <span class="ph-t" id="fund-gpd-title">국내 펀드별 의무투자 현황<span class="ph-chev">▼</span></span>
+        <span style="font-size:11px;color:var(--gray)">단위: 억원</span>
+      </div>
+      <div class="panel-body">
+        <div class="tw">
+          <table>
+            <thead><tr>
+              <th class="tl">펀드명</th>
+              <th class="tl">운용사</th>
+              <th>'26 필요</th>
+              <th>'26 집행</th>
+              <th>달성률</th>
+            </tr></thead>
+            <tbody id="fund-gpd-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 국내 투자 집행 리스트 (아코디언) -->
+    <div class="panel collapsible collapsed" id="fund-deals-d-panel">
+      <div class="ph" onclick="togglePanel('fund-deals-d-panel')">
+        <span class="ph-t" id="fund-deals-d-title">2026 국내 투자 집행<span class="ph-chev">▼</span></span>
+        <span style="font-size:11px;color:var(--gray)">단위: 억원</span>
+      </div>
+      <div class="panel-body">
+        <div class="tw">
+          <table>
+            <thead><tr>
+              <th class="tc">결재일</th>
+              <th class="tl">기업명</th>
+              <th class="tl">펀드 / GP</th>
+              <th>금액</th>
+            </tr></thead>
+            <tbody id="fund-deals-d-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- /2️⃣ 국내GP -->
+
+  <!-- ============ 3️⃣ 운용사 협력 - 해외 (5%) ============ -->
+  <div class="detail-col" id="fund-col-gpi">
+    <div class="detail-col-head">
+      <span class="dc-t">운용사 협력 - 해외</span>
+      <span class="dc-sub">비중 5% · 목표 100%</span>
+    </div>
+
+    <!-- 해외 GP KPI -->
+    <div class="kpi-row exit">
+      <div class="card">
+        <div class="cl">해외 운용사 - 국내 스타트업 투자</div>
+        <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
+          <span class="cv numeric-value" id="fund-gpi-actual">—</span>
+          <span class="cu">억 / 기준 <span id="fund-gpi-target" class="numeric-value">—</span>억</span>
+        </div>
+        <div class="cs" id="fund-gpi-sub">달성률 —%</div>
+        <div class="gauge-wrap">
+          <div class="gauge-bg"><div class="gauge-fill" id="fund-gpi-bar" style="background:var(--or);width:0%"></div></div>
+          <div class="gauge-lbl"><span id="fund-gpi-pct" class="numeric-value">0%</span><span id="fund-gpi-target-lbl">목표 100%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 해외 펀드별 진척 (아코디언) -->
+    <div class="panel collapsible collapsed" id="fund-gpi-panel">
+      <div class="ph" onclick="togglePanel('fund-gpi-panel')">
+        <span class="ph-t" id="fund-gpi-title">해외 펀드별 한국기업 투자 현황<span class="ph-chev">▼</span></span>
+        <span style="font-size:11px;color:var(--gray)">단위: 억원 (원화환산)</span>
+      </div>
+      <div class="panel-body">
+        <div class="tw">
+          <table>
+            <thead><tr>
+              <th class="tl">펀드명</th>
+              <th class="tc">국가</th>
+              <th>'26 필요</th>
+              <th>'26 집행</th>
+            </tr></thead>
+            <tbody id="fund-gpi-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 해외 투자 집행 리스트 (아코디언) — [15차] 투자일자 컬럼 추가 -->
+    <div class="panel collapsible collapsed" id="fund-deals-i-panel">
+      <div class="ph" onclick="togglePanel('fund-deals-i-panel')">
+        <span class="ph-t" id="fund-deals-i-title">2026 해외 투자 집행<span class="ph-chev">▼</span></span>
+        <span style="font-size:11px;color:var(--gray)">단위: 억원 (원화환산)</span>
+      </div>
+      <div class="panel-body">
+        <div class="tw">
+          <table>
+            <thead><tr>
+              <th>투자일자</th>
+              <th class="tl">기업명</th>
+              <th class="tl">펀드명</th>
+              <th>금액</th>
+            </tr></thead>
+            <tbody id="fund-deals-i-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- /3️⃣ 해외GP -->
+
+</div>
+<!-- /fund-detail-split 펀드팀 -->
+
+</div>
+<!-- ====================== /펀드팀 ====================== -->
+
+</div><!-- /wrap -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+// [신규] 다운로드 — 현재 활성 팀의 대시보드만 캡처해서 PDF/PPT로 저장
+// [v3] PDF/PPT 캡처 — 활성 팀만, 고정 너비, 색감 보존 강화
+const CAPTURE_WIDTH = 1480;       // 캡처 강제 너비 (px) — 모니터/줌 무관 일정 결과
+const CAPTURE_SCALE = 2;          // [18차] 1.5→2로 상향 (sub-pixel 흐림 제거)
+const JPEG_QUALITY  = 0.95;       // [18차] 0.88→0.95 (색감 보존)
+const MAX_PAGES     = 30;         // 페이지 수 안전망 (무한루프/거대캔버스 방지)
+
+// [18차+] html2canvas onclone에서 호출 — cloned DOM에 inline style 강제 주입
+// 색감 보존 + 어두운 박스 회색 렌더 버그 우회 + 텍스트 명도 보장
+function applyCloneStyleOverrides(clonedDoc){
+  // KPI 1/2/3 박스 — 단색 #1F1F1F가 회색 렌더되는 이슈 우회
+  clonedDoc.querySelectorAll('.goal-box.fund-sub').forEach(el=>{
+    el.style.setProperty('background','#1F1F1F','important');
+    el.style.setProperty('background-color','#1F1F1F','important');
+    el.style.setProperty('background-image','linear-gradient(135deg,#1F1F1F 0%,#1F1F1F 100%)','important');
+    el.style.setProperty('color','#FFFFFF','important');
+    el.style.setProperty('opacity','1','important');
+    // 박스 안 텍스트 색 (자식 요소들)
+    el.querySelectorAll('*').forEach(c=>{
+      c.style.setProperty('opacity','1','important');
+    });
+  });
+  clonedDoc.querySelectorAll('.goal-box.fund-sub .goal-label').forEach(el=>{
+    el.style.setProperty('color','rgba(255,255,255,0.65)','important');
+  });
+  clonedDoc.querySelectorAll('.goal-box.fund-sub .goal-val').forEach(el=>{
+    el.style.setProperty('color','#FFFFFF','important');
+  });
+  // 종합 카드 (주황 gradient) — 강제
+  clonedDoc.querySelectorAll('.goal-box.fund-total').forEach(el=>{
+    el.style.setProperty('background','linear-gradient(135deg,#FF5831 0%,#D94020 100%)','important');
+    el.style.setProperty('color','#FFFFFF','important');
+    el.style.setProperty('opacity','1','important');
+  });
+  clonedDoc.querySelectorAll('.goal-box.fund-total .goal-label').forEach(el=>{
+    el.style.setProperty('color','rgba(255,255,255,0.9)','important');
+  });
+  clonedDoc.querySelectorAll('.goal-box.fund-total .goal-val').forEach(el=>{
+    el.style.setProperty('color','#FFFFFF','important');
+  });
+  clonedDoc.querySelectorAll('.goal-box.fund-total .goal-sub').forEach(el=>{
+    el.style.setProperty('color','rgba(255,255,255,0.85)','important');
+  });
+  // 헤더 검정 배경 (혹시 같은 버그 영향)
+  clonedDoc.querySelectorAll('.hd').forEach(el=>{
+    el.style.setProperty('background-color','#000000','important');
+  });
+}
+
+async function captureFullDashboard(){
+  const activeTeamEl=document.getElementById(currentTeam==='fund'?'team-fund':'team-invest');
+  if(!activeTeamEl) throw new Error('활성 팀 컨테이너를 찾을 수 없음');
+
+  // 1) 활성 팀의 접힌 아코디언만 임시 펼침
+  const collapsed=[...activeTeamEl.querySelectorAll('.panel.collapsible.collapsed')];
+  collapsed.forEach(p=>p.classList.remove('collapsed'));
+
+  // 2) 캡처 제외 UI 임시 숨김 (다운로드 버튼, 툴팁, 토스트)
+  const hdR=document.querySelector('.hd-r');
+  const tip=document.getElementById('dom-tooltip');
+  const toastEl=document.getElementById('toast');
+  const prev={hdR:hdR?.style.visibility,tip:tip?.style.display,toast:toastEl?.style.display};
+  if(hdR) hdR.style.visibility='hidden';
+  if(tip) tip.style.display='none';
+  if(toastEl) toastEl.style.display='none';
+
+  // 3) 강제 캡처 너비 적용 (반응형 레이아웃이 1480px 기준으로 안착)
+  const docEl=document.documentElement;
+  const bodyEl=document.body;
+  const prevDocW=docEl.style.width, prevBodyW=bodyEl.style.width;
+  const prevDocMW=docEl.style.minWidth, prevBodyMW=bodyEl.style.minWidth;
+  docEl.style.width=CAPTURE_WIDTH+'px';
+  docEl.style.minWidth=CAPTURE_WIDTH+'px';
+  bodyEl.style.width=CAPTURE_WIDTH+'px';
+  bodyEl.style.minWidth=CAPTURE_WIDTH+'px';
+
+  // 4) 레이아웃 안착 대기 (차트 리사이즈 + 폰트 로드)
+  if(window.dispatchEvent) window.dispatchEvent(new Event('resize'));
+  // [18차] 폰트 async 로드 대기 — SUIT Variable이 미로드면 fallback 폰트로 렌더돼서 흐림
+  if(document.fonts && document.fonts.ready){
+    try{ await document.fonts.ready; }catch(e){}
+  }
+  await new Promise(r=>setTimeout(r,700));
+
+  // [19차+] dom-to-image-more는 onCloneNode 콜백 미지원 → 캡처 직전 원본에 inline 스타일 임시 적용
+  const subBackups=[];
+  document.querySelectorAll('.goal-box.fund-sub').forEach(el=>{
+    subBackups.push([el,el.style.cssText]);
+    el.style.background='#1F1F1F';
+    el.style.backgroundColor='#1F1F1F';
+    el.style.color='#FFFFFF';
+  });
+  const totalBackups=[];
+  document.querySelectorAll('.goal-box.fund-total').forEach(el=>{
+    totalBackups.push([el,el.style.cssText]);
+    el.style.background='linear-gradient(135deg,#FF5831 0%,#D94020 100%)';
+    el.style.color='#FFFFFF';
+  });
+  const hdBackups=[];
+  document.querySelectorAll('.hd').forEach(el=>{
+    hdBackups.push([el,el.style.cssText]);
+    el.style.backgroundColor='#000000';
+  });
+
+  let canvas;
+  try{
+    // 5) 캡처 — dom-to-image-more (SVG foreignObject 기반, CSS 100% 호환)
+    const dti=window.domtoimage;
+    if(!dti||!dti.toCanvas)throw new Error('dom-to-image-more 라이브러리 미로드');
+    const targetH=bodyEl.scrollHeight;
+    canvas=await dti.toCanvas(bodyEl,{
+      width:CAPTURE_WIDTH*CAPTURE_SCALE,
+      height:targetH*CAPTURE_SCALE,
+      style:{
+        transform:`scale(${CAPTURE_SCALE})`,
+        transformOrigin:'top left',
+        width:CAPTURE_WIDTH+'px',
+        height:targetH+'px',
+      },
+      bgcolor:'#F2F1EC',
+      filter:(node)=>{
+        if(!node||node.nodeType!==1)return true;
+        if(node.classList?.contains?.('hd-r'))return false;
+        if(node.id==='dom-tooltip')return false;
+        if(node.id==='toast')return false;
+        return true;
+      },
+    });
+  } finally {
+    // 6) 원상복구 — inline 스타일 + width + UI 복원 (예외 시에도 반드시)
+    subBackups.forEach(([el,css])=>{el.style.cssText=css;});
+    totalBackups.forEach(([el,css])=>{el.style.cssText=css;});
+    hdBackups.forEach(([el,css])=>{el.style.cssText=css;});
+    docEl.style.width=prevDocW||'';
+    docEl.style.minWidth=prevDocMW||'';
+    bodyEl.style.width=prevBodyW||'';
+    bodyEl.style.minWidth=prevBodyMW||'';
+    collapsed.forEach(p=>p.classList.add('collapsed'));
+    if(hdR) hdR.style.visibility=prev.hdR||'';
+    if(tip) tip.style.display=prev.tip||'';
+    if(toastEl) toastEl.style.display=prev.toast||'';
+    if(window.dispatchEvent) window.dispatchEvent(new Event('resize'));
+  }
+  if(!canvas||!canvas.width||!canvas.height){
+    throw new Error(`캔버스 비정상: ${canvas?.width}×${canvas?.height}`);
+  }
+  return canvas;
+}
+function teamFileTag(){return currentTeam==='fund'?'fund-kpi':'invest-kpi';}
+
+function setDlBtnsBusy(busy){
+  ['dl-pdf-btn','dl-ppt-btn'].forEach(id=>{
+    const b=document.getElementById(id);
+    if(!b)return;
+    b.disabled=busy;
+    b.style.opacity=busy?'0.5':'';
+    b.style.pointerEvents=busy?'none':'';
+  });
+}
+
+// [Plan C] PDF 출력 — 브라우저 native 인쇄 (window.print)
+// 색감/폰트 100% 보존. 사용자가 인쇄 대화상자에서 "PDF로 저장" 선택.
+async function downloadPDF(){
+  const teamReady=currentTeam==='fund'?fundDataLoaded:!!rawData.length;
+  if(!teamReady){toast('먼저 데이터를 새로고침 해주세요','terr');return;}
+  setDlBtnsBusy(true);
+
+  // 1) 활성 팀에 따라 body 클래스 추가 (비활성 팀 숨김)
+  const teamClass=`printing-${currentTeam}`;
+  document.body.classList.add('printing',teamClass);
+
+  // 2) 활성 팀의 접힌 아코디언 임시 펼침
+  const activeTeamEl=document.getElementById(currentTeam==='fund'?'team-fund':'team-invest');
+  const collapsed=activeTeamEl?[...activeTeamEl.querySelectorAll('.panel.collapsible.collapsed')]:[];
+  collapsed.forEach(p=>p.classList.remove('collapsed'));
+
+  // 3) 인쇄 대화상자 안내 토스트
+  toast('인쇄 대화상자에서 "대상: PDF로 저장" → "레이아웃: 가로" → 저장','tok');
+
+  // 4) 복원 함수
+  const restore=()=>{
+    document.body.classList.remove('printing',teamClass);
+    collapsed.forEach(p=>p.classList.add('collapsed'));
+    setDlBtnsBusy(false);
+    window.removeEventListener('afterprint',onAfter);
+  };
+  const onAfter=()=>{ restore(); };
+  window.addEventListener('afterprint',onAfter);
+
+  // 5) 파일명 힌트를 document.title에 임시 주입 (인쇄 대화상자 기본 파일명에 반영)
+  const prevTitle=document.title;
+  let period='2026';
+  if(currentTeam==='fund'){
+    const cu=fundData.cutoff;
+    if(cu){const ql=quarterLabel(cu).replace(/\s/g,'');period=ql||'2026';}
+  } else {
+    const yvEl=document.getElementById('f-year');
+    const yv=yvEl?yvEl.value:'2026';
+    period=yv==='all'?'전체':yv+'년';
+  }
+  const fileNameHint=`dcamp-${teamFileTag()}-${period}-${new Date().toISOString().slice(0,10)}`;
+  document.title=fileNameHint;
+
+  // 6) 레이아웃 안착 대기 후 인쇄
+  await new Promise(r=>setTimeout(r,300));
+  try{
+    window.print();
+  }catch(e){
+    console.error(e);
+    toast('인쇄 실행 실패: '+e.message,'terr');
+    restore();
+    document.title=prevTitle;
+    return;
+  }
+  // 7) 인쇄 후 title 복원 (afterprint가 안 호출되는 일부 환경 대비 안전망)
+  document.title=prevTitle;
+  setTimeout(()=>{ if(document.body.classList.contains('printing'))restore(); },30000);
+}
+
+async function downloadPPT(){
+  const teamReady=currentTeam==='fund'?fundDataLoaded:!!rawData.length;
+  if(!teamReady){toast('먼저 데이터를 새로고침 해주세요','terr');return;}
+  if(!window.domtoimage||!window.PptxGenJS){toast('PPT 라이브러리 로드 실패 — 새로고침 후 다시 시도','terr');return;}
+  setDlBtnsBusy(true);
+  toast('PPT 생성 중...','tok');
+  try{
+    const canvas=await captureFullDashboard();
+    const pres=new PptxGenJS();
+    pres.layout='LAYOUT_WIDE'; // 13.333 × 7.5 inch
+    const slideW=13.333,slideH=7.5,margin=0.3;
+    const imgW=slideW-margin*2;
+    const pxPerInch=canvas.width/imgW;
+    const slideHpx=(slideH-margin*2)*pxPerInch;
+    if(!isFinite(slideHpx)||slideHpx<50){
+      throw new Error(`slideHpx 비정상(${slideHpx.toFixed(2)}). canvas=${canvas.width}×${canvas.height}`);
+    }
+    const totalH=canvas.height;
+    let yPx=0,slideIdx=0;
+    while(yPx<totalH && slideIdx<MAX_PAGES){
+      const sliceH=Math.min(slideHpx,totalH-yPx);
+      if(sliceH<1) break;
+      const slice=document.createElement('canvas');
+      slice.width=canvas.width;
+      slice.height=Math.max(1,Math.round(sliceH));
+      const ctx=slice.getContext('2d');
+      ctx.fillStyle='#F2F1EC';ctx.fillRect(0,0,slice.width,slice.height);
+      ctx.drawImage(canvas,0,yPx,canvas.width,sliceH,0,0,canvas.width,sliceH);
+      const slide=pres.addSlide();
+      slide.background={color:'F2F1EC'};
+      // [18차+] PNG 무손실 — 색감 100% 보존
+      slide.addImage({
+        data:slice.toDataURL('image/png'),
+        x:margin,y:margin,
+        w:imgW,h:sliceH/pxPerInch
+      });
+      yPx+=sliceH;
+      slideIdx++;
+    }
+    if(slideIdx>=MAX_PAGES && yPx<totalH){
+      console.warn(`PPT 슬라이드 안전망(${MAX_PAGES}장) 도달 — 일부 잘림. canvas=${canvas.width}×${canvas.height}, slideHpx=${slideHpx.toFixed(0)}`);
+      toast(`경고: PPT가 ${MAX_PAGES}장에서 잘림 — 콘솔 확인`,'terr');
+    }
+    const yvEl=document.getElementById('f-year');
+    const yv=yvEl?yvEl.value:'2026';
+    // [15차] 펀드팀: cutoff 분기 태그 포함
+    let period;
+    if(currentTeam==='fund'){
+      const cu=fundData.cutoff;
+      if(cu){
+        const ql=quarterLabel(cu).replace(/\s/g,'');
+        period=ql||'2026';
+      } else period='2026';
+    } else {
+      period=yv==='all'?'전체':yv+'년';
+    }
+    await pres.writeFile({fileName:`dcamp-${teamFileTag()}-${period}-${new Date().toISOString().slice(0,10)}.pptx`});
+    toast(`PPT 다운로드 완료 (${slideIdx}슬라이드)`,'tok');
+  }catch(e){
+    console.error(e);toast('PPT 생성 중 오류: '+e.message,'terr');
+  }finally{setDlBtnsBusy(false);}
+}
+// [추가] 아코디언 토글 — 각 패널 독립 동작
+function togglePanel(id){
+  const p=document.getElementById(id);
+  if(!p)return;
+  p.classList.toggle('collapsed');
+}
+
+let toastT;
+function toast(msg,cls=''){const el=document.getElementById('toast');el.textContent=msg;el.className='toast'+(cls?' '+cls:'');void el.offsetWidth;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),3500);}
+
+const ADMIN_KEY = 'dcamp2026';
+const urlParams = new URLSearchParams(window.location.search);
+if(urlParams.get('admin') === ADMIN_KEY){
+  document.getElementById('sync-btn').style.display = 'inline-flex';
+}
+
+// ===================================================================
+// [8차 추가] 펀드팀 KPI — 별도 Google Sheets 연동
+// ===================================================================
+const FUND_SHEET_ID='1bt9SeuQLF8Cf6W66zUqYIKHxrNRrLgin-dsOx1jLcRc';
+const FUND_SHEETS={team:'팀KPI',domain:'전략 도메인 출자',gp:'운용사 협력'};
+const FUND_WEIGHTS={domain:0.50,gpDomestic:0.45,gpIntl:0.05};
+const FUND_TARGETS={domain:0.80,gpDomestic:1.10,gpIntl:1.00};
+let fundData={
+  domain:{target:0,actual:0,rate:0,score:0,funds:[]},
+  gpDomestic:{target:0,actual:0,rate:0,score:0,funds:[]},
+  gpIntl:{target:0,actual:0,rate:0,score:0,funds:[]},
+  deals:[],
+  intlDeals:[],     // [15차] 표 B (해외 투자리스트, deal 단위, 투자일자 포함)
+  // FX 기본값: 시트의 실제 값을 best-effort로 추출하되, 못 찾으면 fallback
+  // 26.03.31 기준 서울외국환중개 매매기준율
+  meta:{
+    evalDate:'2026-12-31',
+    updateDate:'',
+    usdKrw:1513.4,
+    jpyKrw:9.4673,
+    fxByDate:{},        // [15차] 분기별 환율표 K38:M42 → {'2026-03-31':{usdKrw,jpyKrw}, ...}
+    cutoffOptions:[]    // [15차] 환율표에서 추출한 분기 라벨 (정렬)
+  },
+  cutoff:null            // [15차] 현재 선택된 기준일자 (YYYY-MM-DD)
+};
+let fundDChart=null;
+let fundDataLoaded=false;
+
+
+function fundCsvUrl(sheet,range){
+  // [권한개조] 비공개 시트를 서버 함수(api/sheet.js)가 로봇 계정으로 읽어 CSV로 넘겨줌.
+  //   서버가 범위 폭만큼 빈칸을 패딩해줘서 기존 gviz 컬럼 정렬(문자열 셀 보존)과 동일하게 동작.
+  const r=range?`&range=${encodeURIComponent(range)}`:'';
+  return `/api/sheet?doc=fund&tab=${encodeURIComponent(sheet)}${r}`;
+}
+
+// [9차] file:// CORS 우회를 위한 robust fetch — PapaParse download → fetch API → JSONP 순으로 fallback
+function fetchCsvRows(url){
+  return new Promise((resolve,reject)=>{
+    // 1차: 표준 fetch API (CORS 헤더 정상 반환 시 file://에서도 동작)
+    fetch(url,{mode:'cors',credentials:'omit'})
+      .then(res=>{
+        if(!res.ok)throw new Error(`HTTP ${res.status}`);
+        return res.text();
+      })
+      .then(text=>{
+        if(/^<!DOCTYPE|^<html/i.test(text.trim())){
+          throw new Error('HTML 응답 (시트가 비공개일 가능성)');
+        }
+        const parsed=Papa.parse(text,{skipEmptyLines:false});
+        if(!parsed.data||!parsed.data.length)throw new Error('빈 응답');
+        resolve(parsed.data);
+      })
+      .catch(fetchErr=>{
+        // 2차 fallback: PapaParse download 모드 (XHR 기반)
+        console.warn('[fund] fetch 실패, PapaParse XHR로 재시도:',fetchErr.message);
+        Papa.parse(url,{
+          download:true,skipEmptyLines:false,
+          complete(res){
+            if(!res.data||!res.data.length){
+              reject(new Error(`데이터 없음 (XHR도 실패: ${fetchErr.message})`));
+              return;
+            }
+            resolve(res.data);
+          },
+          error(papaErr){
+            reject(new Error(`fetch 실패: ${fetchErr.message} · XHR 실패: ${papaErr?.message||'unknown'}`));
+          }
+        });
+      });
+  });
+}
+
+async function fetchFundData(){
+  const btn=document.getElementById('sync-btn');
+  const prevTxt=btn.textContent;
+  if(currentTeam==='fund'){btn.disabled=true;btn.textContent='불러오는 중...';}
+  try{
+    // [15차] 6개 fetch 병렬
+    //   GP 시트: 컬럼 타입 자동 감지 이슈 회피 위해 좁은 범위로 분할 fetch
+    //   • 해외펀드 detail (표 A): A22:O35 → 통화구분/필요액·집행액 원화 컬럼 보존
+    //   • 국내 투자 집행 리스트: A118:L174 → 표 이동(~120~137행) 반영, A열부터 읽어 컬럼 인덱스 정렬 유지
+    //   • [신규] 분기별 환율표: K38:M42 → 기준일자별 USD/JPY 환율
+    //   • [신규] 해외 투자리스트 (표 B): B37:I80 → deal 단위 + D열 투자일자 (KPI3 본 원천), 버퍼 79행까지 수용
+    //   전체 GP 시트는 요약값(target/rate) + 국내 펀드 detail용
+    const [domainRows,gpRows,gpIntlRows,dealRows,fxTableRows,intlDealRows]=await Promise.all([
+      fetchCsvRows(fundCsvUrl(FUND_SHEETS.domain)),
+      fetchCsvRows(fundCsvUrl(FUND_SHEETS.gp)),
+      fetchCsvRows(fundCsvUrl(FUND_SHEETS.gp,'A22:O35')),
+      fetchCsvRows(fundCsvUrl(FUND_SHEETS.gp,'A118:L174')),  // 국내 투자 집행 (표 이동 반영, A열 시작으로 인덱스 정렬, 174행까지 여유)
+      fetchCsvRows(fundCsvUrl(FUND_SHEETS.gp,'K38:M42')),    // 분기별 환율표
+      fetchCsvRows(fundCsvUrl(FUND_SHEETS.gp,'B37:I80')),    // 해외 투자리스트 (deal 단위, B열 패딩) — 버퍼 79행까지, 파서가 빈 투자일자에서 종료
+    ]);
+    parseFundDomain(domainRows);
+    parseFundGP(gpRows);
+    parseFundIntlDetail(gpIntlRows);   // 해외펀드 detail (통화/원화 컬럼 정확 보존)
+    parseFundDeals(dealRows);          // 국내 투자 집행 리스트 (GP/펀드명 정확 보존)
+    parseFundFxTable(fxTableRows);     // [15차] 분기별 환율표
+    parseFundIntlDeals(intlDealRows);  // [15차] 해외 투자리스트 (deal 단위)
+    // [15차] cutoff 적용 전 원본 백업 (셀렉터 변경 시 재계산 위해)
+    fundData.domain._allFunds=[...(fundData.domain.funds||[])];
+    fundData.gpDomestic._allFunds=[...(fundData.gpDomestic.funds||[])];
+    fundData.gpIntl._allFunds=[...(fundData.gpIntl.funds||[])];
+    fundData._allDeals=[...(fundData.deals||[])];
+    fundData._allIntlDeals=[...(fundData.intlDeals||[])];
+    // 셀렉터 채우기 + 디폴트 cutoff (가장 최근 분기) 결정 후 재계산
+    populateFundCutoffSelect();
+    applyFundCutoff();
+    fundDataLoaded=true;
+    if(currentTeam==='fund'){
+      renderFundAll();
+      toast('펀드팀 데이터 동기화 완료','tok');
+      const diag=document.getElementById('fund-diag');
+      if(diag)diag.style.display='none';
+    }
+  }catch(e){
+    console.error('[fund] fetch error',e);
+    if(currentTeam==='fund'){
+      showFundDiagnostic(e.message||String(e));
+      toast('펀드팀 데이터 불러오기 실패 — 진단 메시지 확인','terr');
+    }
+  }finally{
+    if(currentTeam==='fund'){btn.disabled=false;btn.textContent=prevTxt||'데이터 새로고침';}
+  }
+}
+
+// ── [15차] cutoff 헬퍼 함수들 ─────────────────────────────────
+// '26.03.31 기준' / '2026-03-31' / '26.03.31' → 'YYYY-MM-DD'
+function normalizeQuarterLabel(s){
+  if(!s)return null;
+  const m=String(s).match(/(\d{2,4})[.\-\/]\s*(\d{1,2})[.\-\/]\s*(\d{1,2})/);
+  if(!m)return null;
+  let y=+m[1]; if(y<100)y+=2000;
+  const mo=+m[2], d=+m[3];
+  if(mo<1||mo>12||d<1||d>31)return null;
+  return `${String(y).padStart(4,'0')}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
+// '26년 1월' → '2026-01-31' (월말)
+// '2026-02-13' → '2026-02-13'
+// '26-02' → '2026-02-28/29' (월말)
+function parseFundDate(s){
+  if(s==null)return null;
+  const str=String(s).trim();
+  if(!str)return null;
+  // YYYY-MM-DD / YY-MM-DD / YYYY.MM.DD
+  let m=str.match(/^(\d{2,4})[\-\.\/](\d{1,2})[\-\.\/](\d{1,2})/);
+  if(m){
+    let y=+m[1]; if(y<100)y+=2000;
+    return `${String(y).padStart(4,'0')}-${String(+m[2]).padStart(2,'0')}-${String(+m[3]).padStart(2,'0')}`;
+  }
+  // '26년 1월' / '2026년 3월' → 월말일
+  m=str.match(/^(\d{2,4})\s*년\s*(\d{1,2})\s*월/);
+  if(m){
+    let y=+m[1]; if(y<100)y+=2000;
+    const mo=+m[2];
+    const lastDay=new Date(y,mo,0).getDate();  // 다음 달 0일 = 이번 달 말일
+    return `${String(y).padStart(4,'0')}-${String(mo).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  }
+  // YY-MM / YY.MM
+  m=str.match(/^(\d{2,4})[\-\.\/](\d{1,2})$/);
+  if(m){
+    let y=+m[1]; if(y<100)y+=2000;
+    const mo=+m[2];
+    const lastDay=new Date(y,mo,0).getDate();
+    return `${String(y).padStart(4,'0')}-${String(mo).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  }
+  return null;
+}
+
+// 환율 룩업: 정확 매칭 우선, 없으면 ≤ cutoff 중 가장 최근 분기 환율로 폴백
+function fxAt(cutoff){
+  const m=(fundData.meta&&fundData.meta.fxByDate)||{};
+  if(cutoff && m[cutoff] && m[cutoff].usdKrw){return m[cutoff];}
+  if(cutoff){
+    const keys=Object.keys(m).filter(k=>k<=cutoff && m[k].usdKrw).sort();
+    if(keys.length)return m[keys[keys.length-1]];
+  }
+  // 최후 폴백: 메타 기본 환율
+  return {
+    usdKrw:fundData.meta.usdKrw||1513.4,
+    jpyKrw:fundData.meta.jpyKrw||9.4673
+  };
+}
+
+// 통화별 원화 환산 (cutoff 환율 기준)
+function toKrw(amount, currency, cutoff){
+  if(!isFinite(amount))return 0;
+  const cur=String(currency||'').toUpperCase().trim();
+  if(!cur || cur==='KRW' || cur==='원' || cur==='₩')return amount;
+  const fx=fxAt(cutoff);
+  if(cur==='USD' || cur==='$')return amount*(fx.usdKrw||0);
+  if(cur==='JPY' || cur==='엔' || cur==='¥')return amount*(fx.jpyKrw||0);
+  return amount;  // 알 수 없는 통화는 원본 그대로
+}
+
+// [17차] 억 단위 스마트 포맷 — 정수면 정수, 아니면 소수 1자리
+function fmtEokSmart(eok){
+  if(!isFinite(eok))return '0';
+  return Math.abs(eok-Math.round(eok))<0.05?Math.round(eok).toString():eok.toFixed(1);
+}
+
+// 'YYYY-MM-DD' → '26년 Q1' 같은 짧은 라벨
+function quarterLabel(ymd){
+  if(!ymd)return '';
+  const m=String(ymd).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m)return ymd;
+  const year=m[1].slice(2);
+  const mo=+m[2];
+  const q=Math.floor((mo-1)/3)+1;
+  return `${year}년 Q${q}`;
+}
+
+// ── [15차] 분기별 환율표 파싱 (K38:M42) ─────────────────────
+// idx0=K(기준일자 라벨), idx1=L(USD-KRW), idx2=M(JPY-KRW)
+function parseFundFxTable(rows){
+  if(!rows||!rows.length)return;
+  const fxByDate={};
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i];
+    if(!r||!r.length)continue;
+    const label=String(r[0]||'').trim();
+    if(!label)continue;
+    const normDate=normalizeQuarterLabel(label);
+    if(!normDate)continue;  // 헤더 행 또는 빈 라벨 스킵
+    const usdKrw=parseNum(r[1]);
+    const jpyKrw=parseNum(r[2]);
+    fxByDate[normDate]={
+      usdKrw:isFinite(usdKrw)&&usdKrw>0?usdKrw:null,
+      jpyKrw:isFinite(jpyKrw)&&jpyKrw>0?jpyKrw:null,
+    };
+  }
+  fundData.meta.fxByDate=fxByDate;
+  // 옵션: 환율 값이 있는 분기만 노출 (사용자 결정 Q3-가)
+  fundData.meta.cutoffOptions=Object.keys(fxByDate)
+    .filter(k=>fxByDate[k].usdKrw||fxByDate[k].jpyKrw)
+    .sort();
+}
+
+// ── [15차+진단] 해외 투자리스트 (표 B) 파싱 — B37:I80 (B열 패딩, 버퍼 79행까지) ─────
+// 헤더 컬럼을 동적 매핑하므로 좁은 범위 fetch의 컬럼 drop 이슈에 강건
+function parseFundIntlDeals(rows){
+  fundData.intlDeals=[];
+  if(!rows||!rows.length){
+    console.warn('[fund/intlDeals] 빈 응답');
+    window.__fundIntlDealsDiag={status:'empty-response',rows:null};
+    return;
+  }
+  // 진단용 raw 보존
+  window.__fundIntlDealsDiag={status:'parsing',rawRows:rows.slice(0,15)};
+
+  // 1) 헤더 행 찾기 — 키워드 OR 매칭 (최소 2개)
+  let headerIdx=-1;
+  for(let i=0;i<rows.length;i++){
+    const t=rowText(rows[i]);
+    let hits=0;
+    if(/투자일자/.test(t))hits++;
+    if(/펀드명/.test(t))hits++;
+    if(/투자기업명|기업명/.test(t))hits++;
+    if(/통화구분|통화/.test(t))hits++;
+    if(/투자금액/.test(t))hits++;
+    if(/원화환산/.test(t))hits++;
+    if(hits>=2){headerIdx=i;break;}
+  }
+  if(headerIdx<0){
+    console.warn('[fund/intlDeals] 헤더 미발견. 행 수:',rows.length,'첫 5행 텍스트:',rows.slice(0,5).map(r=>rowText(r)));
+    window.__fundIntlDealsDiag.status='header-not-found';
+    return;
+  }
+
+  // 2) 헤더 행에서 컬럼 인덱스 동적 매핑
+  const headerRow=rows[headerIdx];
+  const colMap={no:-1,date:-1,fund:-1,company:-1,currency:-1,amount:-1,krw:-1};
+  headerRow.forEach((cell,k)=>{
+    const c=String(cell||'').trim();
+    if(!c)return;
+    if(/^No$|번호/i.test(c)&&colMap.no<0)colMap.no=k;
+    if(/투자일자/.test(c)&&colMap.date<0)colMap.date=k;
+    if(/펀드명/.test(c)&&colMap.fund<0)colMap.fund=k;
+    if(/(투자)?기업명/.test(c)&&colMap.company<0)colMap.company=k;
+    if(/통화/.test(c)&&colMap.currency<0)colMap.currency=k;
+    if(/투자금액/.test(c)&&!/원화/.test(c)&&colMap.amount<0)colMap.amount=k;
+    if(/원화환산/.test(c)&&colMap.krw<0)colMap.krw=k;
+  });
+  window.__fundIntlDealsDiag.colMap={...colMap};
+  window.__fundIntlDealsDiag.headerRow=headerRow;
+
+  // 3) anchor 기반 위치 추론 — 시트 헤더 행에 일부 셀만 채워진 경우 대응
+  //    펀드명/통화구분 등 anchor가 매핑되어 있으면 누락 컬럼을 위치 관계로 추론
+  if(colMap.date<0 && colMap.fund>0)colMap.date=colMap.fund-1;   // 펀드명 직전 = 투자일자
+  if(colMap.no<0 && colMap.date>0)colMap.no=colMap.date-1;       // 투자일자 직전 = No
+  if(colMap.amount<0 && colMap.currency>=0)colMap.amount=colMap.currency+1;  // 통화구분 다음 = 투자금액
+  if(colMap.krw<0 && colMap.amount>0)colMap.krw=colMap.amount+1;             // 투자금액 다음 = 원화환산
+
+  // 4) 데이터 행 샘플로 추론 검증 — date 컬럼이 실제로 날짜 패턴인지
+  const sampleRow=rows.slice(headerIdx+1).find(r=>!isBlankRow(r));
+  if(sampleRow && colMap.date>=0){
+    const dateStr=String(sampleRow[colMap.date]||'').trim();
+    if(!parseFundDate(dateStr)){
+      // 추론한 date 컬럼이 날짜 아니면 샘플 행에서 직접 탐색
+      let dateK=-1;
+      sampleRow.forEach((cell,k)=>{
+        if(dateK>=0)return;
+        if(parseFundDate(String(cell||'').trim()))dateK=k;
+      });
+      if(dateK>=0){
+        console.log('[fund/intlDeals] date 컬럼 재추론:',colMap.date,'→',dateK);
+        colMap.date=dateK;
+      }
+    }
+  }
+  window.__fundIntlDealsDiag.colMapInferred={...colMap};
+
+  // 5) 필수 컬럼 최종 확인
+  if(colMap.date<0 || colMap.amount<0){
+    console.warn('[fund/intlDeals] 추론 후에도 필수 컬럼 매핑 실패. colMap:',colMap,'header:',headerRow);
+    window.__fundIntlDealsDiag.status='colmap-fail';
+    return;
+  }
+
+  // 4) 데이터 행 파싱
+  const deals=[];
+  for(let j=headerIdx+1;j<rows.length;j++){
+    const dr=rows[j];
+    if(isBlankRow(dr))break;
+    const company=colMap.company>=0?String(dr[colMap.company]||'').trim():'';
+    const fund=colMap.fund>=0?String(dr[colMap.fund]||'').trim():'';
+    if(/합계|총계|SUM/i.test(company)||/합계|총계|SUM/i.test(fund))break;
+    const invDate=String(dr[colMap.date]||'').trim();
+    // deal 표는 연속 데이터 → 투자일자가 빈 행 = 표의 끝 (합계행/다음 표 경계에서 종료)
+    if(!invDate)break;
+    const dn=parseFundDate(invDate);
+    // 날짜 파싱 불가 행 = 표 경계로 간주하고 종료 (아래 국내펀드 표 오염 방지)
+    if(!dn){
+      console.warn('[fund/intlDeals] 투자일자 파싱 실패 → 표 종료로 간주:',invDate);
+      break;
+    }
+    if(!company && !fund)continue;
+    const currency=colMap.currency>=0?(String(dr[colMap.currency]||'').trim().toUpperCase()||'KRW'):'KRW';
+    const amount=parseNum(dr[colMap.amount])||0;
+    deals.push({
+      no:colMap.no>=0?(parseNum(dr[colMap.no])||0):(deals.length+1),
+      invDate,
+      invDateNorm:dn,
+      fund,
+      company,
+      currency,
+      amount,
+    });
+  }
+  fundData.intlDeals=deals;
+  window.__fundIntlDealsDiag.status='ok';
+  window.__fundIntlDealsDiag.dealsCount=deals.length;
+  if(!deals.length){
+    console.warn('[fund/intlDeals] 헤더는 찾았으나 데이터 0건. headerIdx:',headerIdx,'colMap:',colMap);
+  }
+}
+
+// [9차+] 해외펀드 detail 정밀 재파싱 — 좁은 범위 A22:O35
+// 컬럼 매핑: A(0) | B 결성일(1) | C 종료일(2) | D 국가(3) | E 펀드명(4) | F 운용사(5)
+//        | G 통화(6) | H 약정외화(7) | I 누적외화(8) | J 잔여외화(9) | K 진행률(10)
+//        | L 필요액외화(11) | M 필요액원화(12) | N 집행외화(13) | O 집행원화(14)
+function parseFundIntlDetail(rows){
+  if(!rows||!rows.length)return;
+  const funds=[];
+  // 헤더 행 찾기 (국가/펀드명/운용사명 패턴)
+  let headerIdx=-1;
+  for(let i=0;i<rows.length;i++){
+    if(rowHas(rows[i],'국가','펀드명','운용사명')){headerIdx=i;break;}
+  }
+  if(headerIdx<0)return;
+  let start=headerIdx+1;
+  if(start<rows.length && rowHas(rows[start],'원화'))start=headerIdx+2;
+
+  for(let j=start;j<rows.length;j++){
+    const dr=rows[j];
+    if(isBlankRow(dr))break;
+    if(rowHas(dr,'합계'))break;
+    const country=String(dr[3]||'').trim();
+    const name=String(dr[4]||'').trim();
+    if(!country||!name)break;
+    const currency=String(dr[6]||'').trim()||(country==='일본'?'JPY':'USD');
+    const fxRate=(currency==='JPY')?(fundData.meta.jpyKrw||9.4673):(fundData.meta.usdKrw||1513.4);
+    // 필요액: 원화(M=12) 우선, 누락 시 외화(L=11) × FX
+    const neededFx=parseNum(dr[11])||0;
+    let neededKrw=parseNum(dr[12]);
+    if(!isFinite(neededKrw)||neededKrw<=0)neededKrw=neededFx*fxRate;
+    // 집행액: 원화(O=14) 우선, 누락 시 외화(N=13) × FX
+    const executedFx=parseNum(dr[13])||0;
+    let executedKrw=parseNum(dr[14]);
+    if(!isFinite(executedKrw)||executedKrw<=0)executedKrw=executedFx*fxRate;
+    funds.push({
+      formed:String(dr[1]||'').slice(0,10),
+      end:String(dr[2]||'').slice(0,10),
+      country,
+      name,
+      gp:String(dr[5]||'').trim(),
+      currency,
+      commitFx:parseNum(dr[7])||0,
+      neededFx,
+      neededKrw,
+      executedKrw,
+    });
+  }
+  if(funds.length){
+    // 요약값(target/actual/rate/score)은 기존 gpIntl에서 유지, funds만 교체
+    fundData.gpIntl.funds=funds;
+  }
+}
+
+// [9차] 국내 투자 집행 리스트 정밀 재파싱 — 좁은 범위 A118:L174
+// GP(J), 펀드명(K), 펀드분류(C), 업종(H)이 좁은 범위에서는 정상 반환됨
+function parseFundDeals(rows){
+  if(!rows||!rows.length)return;
+  // 기존 deals 배열에서 국내 deals만 제거하고 정확한 데이터로 교체
+  const intlDeals=(fundData.deals||[]).filter(d=>d.kind==='해외');
+  const newDomestic=[];
+
+  // 헤더 행 찾기
+  let headerIdx=-1;
+  for(let i=0;i<rows.length;i++){
+    if(rowHas(rows[i],'년도','결재일자','기업명')){headerIdx=i;break;}
+  }
+  if(headerIdx<0){
+    // 헤더 못 찾으면 기존 deal 유지
+    return;
+  }
+  for(let j=headerIdx+1;j<rows.length;j++){
+    const dr=rows[j];
+    if(isBlankRow(dr))break;
+    const year=String(dr[3]||'').trim();
+    const date=String(dr[4]||'').trim();
+    const company=String(dr[5]||'').trim();
+    if(!year && !date)break;
+    if(!company)continue;
+    if(/합계|총계|SUM/i.test(company))break;
+    newDomestic.push({
+      kind:'국내',
+      fundCategory:String(dr[2]||'').trim(),    // 펀드 분류 (제휴펀드/프론트원 등)
+      date,
+      company,
+      industry:String(dr[7]||'').trim(),         // 업종
+      amount:parseNum(dr[8])||0,
+      gp:String(dr[9]||'').trim(),               // GP
+      fund:String(dr[10]||'').trim(),            // 펀드명
+    });
+  }
+  if(newDomestic.length){
+    fundData.deals=newDomestic.concat(intlDeals);
+  }
+}
+
+// [9차] 데이터 로드 실패 시 진단 배너 표시
+function showFundDiagnostic(errMsg){
+  let diag=document.getElementById('fund-diag');
+  const isFile=location.protocol==='file:';
+  const probableCause=isFile
+    ? '⚠️ <strong>file:// 프로토콜에서 실행 중</strong> — 브라우저가 Google Sheets로의 cross-origin 요청을 차단했을 가능성이 높습니다.'
+    : `⚠️ 데이터 fetch 실패: <code>${escapeHtml(errMsg)}</code>`;
+  const remedy=isFile
+    ? `<strong>해결책 (택1)</strong><br>
+       1️⃣ <strong>로컬 HTTP 서버로 열기</strong> (가장 빠름)<br>
+       &nbsp;&nbsp;&nbsp;PowerShell에서:<br>
+       &nbsp;&nbsp;&nbsp;<code>cd "C:\\Users\\DCAMP\\Desktop\\KPI 대시보드"; py -m http.server 8000</code><br>
+       &nbsp;&nbsp;&nbsp;그 다음 브라우저에서: <code>http://localhost:8000/</code><br><br>
+       2️⃣ <strong>Vercel에 재배포</strong> (운영용)<br>
+       &nbsp;&nbsp;&nbsp;<code>vercel --prod --yes</code><br><br>
+       3️⃣ <strong>VSCode Live Server 확장</strong> 사용 → 우클릭 "Open with Live Server"`
+    : `시트 권한이 "링크가 있는 모든 사용자"로 공개되어 있는지 확인하세요.<br>
+       또는 콘솔(F12)에서 자세한 에러 메시지를 확인하세요.`;
+  if(!diag){
+    const fund=document.getElementById('team-fund');
+    diag=document.createElement('div');
+    diag.id='fund-diag';
+    diag.style.cssText='background:#FFF4E0;border:1px solid #FFCC99;border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:13px;line-height:1.7;color:#7A4500';
+    fund.insertBefore(diag,fund.firstChild);
+  }
+  diag.innerHTML=`${probableCause}<br><br>${remedy}`;
+  diag.style.display='block';
+}
+
+// 안전한 숫자 파서 — "1,234원", "8.10%", "1,234.5", 빈문자 모두 처리
+function parseNum(v){
+  if(v==null)return NaN;
+  let s=String(v).replace(/[,\s원₩]/g,'').trim();
+  if(!s||s==='-')return NaN;
+  const isPct=s.endsWith('%');
+  if(isPct)s=s.slice(0,-1);
+  const n=parseFloat(s);
+  if(!isFinite(n))return NaN;
+  return isPct?n/100:n;
+}
+function rowText(r){return (r||[]).map(c=>c==null?'':String(c)).join('|');}
+function rowHas(r,...needles){const t=rowText(r);return needles.every(n=>t.includes(n));}
+function isBlankRow(r){return !r||!r.some(c=>String(c||'').trim());}
+function toEok(won){return (won||0)/1e8;}
+function toMm(won){return (won||0)/1e6;}
+function fmtMm(won){const m=toMm(won);return m>=1000?(m/1000).toFixed(2)+'B':m.toFixed(0);}
+// [12차] 표 셀용 억원 포맷 — KPI 카드와 일관 (항상 1 decimal)
+function fmtEokDeci(won){
+  return ((won||0)/1e8).toFixed(1);
+}
+
+// ── 전략 도메인 출자 시트 파싱 ─────────────────────────────────
+function parseFundDomain(rows){
+  const dom={target:0,actual:0,rate:0,score:0,funds:[]};
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i];
+    // 요약 행: "국내 펀드" + "350" 키워드
+    if(String(r[1]||'').trim()==='국내 펀드' && r.some(c=>/350/.test(String(c||'')))){
+      dom.target=parseNum(r[3])||0;
+      dom.actual=parseNum(r[4])||0;
+      dom.rate=parseNum(r[5])||0;
+      dom.score=parseNum(r[6])||0;
+    }
+    // 메타: 업데이트 기준일
+    if(rowHas(r,'업데이트 기준일')){
+      const idx=r.findIndex(c=>String(c||'').includes('업데이트 기준일'));
+      if(idx>=0 && r[idx+1])fundData.meta.updateDate=String(r[idx+1]).slice(0,10);
+    }
+    // 펀드 디테일 헤더 — '의결 날짜' (변경 후) 또는 '펀드대분류' (변경 전) 둘 다 허용
+    const hasHeaderKey=rowHas(r,'의결 날짜') || rowHas(r,'의결날짜') || rowHas(r,'펀드대분류');
+    if(hasHeaderKey && rowHas(r,'GP')){
+      // [15차] commitment 컬럼 인덱스 동적 매핑
+      //   우선순위: '출자(의결) 금액' > '약정금액' > '결성금액'(외화 제외) > dr[18] 폴백
+      let commitIdx=-1;
+      for(let k=0;k<r.length;k++){
+        const c=String(r[k]||'').trim();
+        if(/출자.*의결.*금액|출자\s*약정.*금액/.test(c)){commitIdx=k;break;}
+      }
+      if(commitIdx<0){
+        for(let k=0;k<r.length;k++){
+          const c=String(r[k]||'').trim();
+          if(/약정\s*금액/.test(c) && !/외화|FX/i.test(c)){commitIdx=k;break;}
+        }
+      }
+      if(commitIdx<0){
+        for(let k=0;k<r.length;k++){
+          const c=String(r[k]||'').trim();
+          if(/결성\s*금액/.test(c) && !/외화|FX/i.test(c)){commitIdx=k;break;}
+        }
+      }
+      if(commitIdx<0)commitIdx=18;  // 최후 폴백: 기존 S열
+      // ratio 컬럼도 동적 매핑 (있으면)
+      let ratioIdx=-1;
+      for(let k=0;k<r.length;k++){
+        const c=String(r[k]||'').trim();
+        if(/비중|지분/.test(c)){ratioIdx=k;break;}
+      }
+      if(ratioIdx<0)ratioIdx=16;
+
+      for(let j=i+1;j<rows.length;j++){
+        const dr=rows[j];
+        if(isBlankRow(dr))break;
+        const name=String(dr[3]||'').trim();
+        if(!name)continue;
+        if(/합계|소계|총계/.test(name))break;
+        // B열 값: 변경 후엔 '26년 1월' 형태 의결 날짜, 변경 전엔 '제휴펀드' 등 분류 문자열
+        const bVal=String(dr[1]||'').trim();
+        dom.funds.push({
+          // [15차] 의결 날짜 (KPI1 cutoff 필터 기준). 분류 문자열이면 parseFundDate가 null 반환
+          resolutionDate:bVal,
+          resolutionDateNorm:parseFundDate(bVal),
+          category:bVal,  // 호환성 유지 (기존 코드가 참조할 수 있음)
+          name,
+          gp:String(dr[4]||'').trim(),
+          status:String(dr[5]||'').trim(),
+          year:parseNum(dr[6])||null,
+          ratio:parseNum(dr[ratioIdx]),
+          commitment:parseNum(dr[commitIdx])||0,
+          _commitIdx:commitIdx,  // 디버깅용
+        });
+      }
+      break;
+    }
+  }
+  fundData.domain=dom;
+}
+
+// ── 운용사 협력 시트 파싱 ─────────────────────────────────
+// gviz CSV는 일부 시트에서 라벨 컬럼/일부 셀을 drop하므로
+// 라벨 위치가 아닌 "헤더 패턴" 기반으로 행을 찾고 위치 기반으로 컬럼을 읽는다.
+function parseFundGP(rows){
+  const gpD={target:0,actual:0,rate:0,score:0,funds:[]};
+  const gpI={target:0,actual:0,rate:0,score:0,funds:[]};
+  const deals=[];
+
+  // 1) 메타: 환율, 기준일, 업데이트 일자
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i];
+    if(rowHas(r,'달러-원')){
+      const idx=r.findIndex(c=>/달러-원/.test(String(c||'')));
+      if(idx>=0){const v=parseNum(r[idx+1]);if(isFinite(v)&&v>100)fundData.meta.usdKrw=v;}
+    }
+    if(rowHas(r,'엔-원')){
+      const idx=r.findIndex(c=>/엔-원/.test(String(c||'')));
+      if(idx>=0){const v=parseNum(r[idx+1]);if(isFinite(v)&&v>0)fundData.meta.jpyKrw=v;}
+    }
+    if(rowHas(r,'의무투자필요액 기준일')){
+      const idx=r.findIndex(c=>String(c||'').includes('의무투자필요액 기준일'));
+      if(idx>=0 && r[idx+1])fundData.meta.evalDate=String(r[idx+1]).slice(0,10);
+    }
+    if(rowHas(r,'업데이트 기준일')){
+      const idx=r.findIndex(c=>String(c||'').includes('업데이트 기준일'));
+      if(idx>=0 && r[idx+1])fundData.meta.updateDate=String(r[idx+1]).slice(0,10);
+    }
+  }
+
+  // 2) 요약 행: "의무투자 필요액"+"달성 금액"+"달성률" 헤더 다음 2개 데이터 행
+  for(let i=0;i<rows.length;i++){
+    if(rowHas(rows[i],'의무투자 필요액','달성 금액','달성률')){
+      const summaries=[];
+      for(let j=i+1;j<rows.length && summaries.length<2;j++){
+        const dr=rows[j];
+        if(isBlankRow(dr))continue;
+        const target=parseNum(dr[3]);const actual=parseNum(dr[4]);
+        const rate=parseNum(dr[5]);const score=parseNum(dr[6]);
+        if(!isFinite(target)||target<=0)continue;
+        summaries.push({target,actual,rate:isFinite(rate)?rate:0,score:isFinite(score)?score:0});
+      }
+      if(summaries[0]){Object.assign(gpD,summaries[0]);}
+      if(summaries[1]){Object.assign(gpI,summaries[1]);}
+      break;
+    }
+  }
+
+  // 3) 해외펀드 detail: 헤더에 "국가" 포함
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i];
+    if(rowHas(r,'국가','펀드명','운용사명') && !rowHas(r,'구분')){
+      // 다음 행이 "원화 기준" sub-header면 스킵
+      let start=i+1;
+      if(start<rows.length && rowHas(rows[start],'원화'))start=i+2;
+      for(let j=start;j<rows.length;j++){
+        const dr=rows[j];
+        if(isBlankRow(dr))break;
+        if(rowHas(dr,'합계'))break;
+        const country=String(dr[3]||'').trim();
+        const name=String(dr[4]||'').trim();
+        if(!country||!name)break;
+        const neededFx=parseNum(dr[11])||0;
+        const executedKrw=parseNum(dr[14])||0;  // 위치 14 = 원화 집행액
+        // 원화 필요액(위치 12)은 비어있는 경우가 많음 → FX 환율로 계산
+        let neededKrw=parseNum(dr[12]);
+        if(!isFinite(neededKrw)||neededKrw<=0){
+          const fx=(country==='일본')?(fundData.meta.jpyKrw||9.4673):(fundData.meta.usdKrw||1513.4);
+          neededKrw=neededFx*fx;
+        }
+        gpI.funds.push({
+          formed:String(dr[1]||'').slice(0,10),
+          end:String(dr[2]||'').slice(0,10),
+          country,
+          name,
+          gp:String(dr[5]||'').trim(),
+          currency:country==='일본'?'JPY':'USD',
+          commitFx:parseNum(dr[7])||0,
+          neededFx,
+          neededKrw,
+          executedKrw,
+        });
+      }
+      break;
+    }
+  }
+
+  // 4) 국내펀드 detail: 헤더에 "구분" 포함
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i];
+    if(rowHas(r,'구분','펀드명','운용사명')){
+      for(let j=i+1;j<rows.length;j++){
+        const dr=rows[j];
+        if(isBlankRow(dr))break;
+        if(rowHas(dr,'합계'))break;
+        const category=String(dr[3]||'').trim();
+        const name=String(dr[4]||'').trim();
+        if(!category||!name)break;
+        gpD.funds.push({
+          formed:String(dr[1]||'').slice(0,10),
+          end:String(dr[2]||'').slice(0,10),
+          category,
+          name,
+          gp:String(dr[5]||'').trim(),
+          mandatoryAmt:parseNum(dr[6])||0,
+          cumulative:parseNum(dr[7])||0,
+          remaining:parseNum(dr[8])||0,
+          progress:parseNum(dr[9])||0,
+          needed26:parseNum(dr[10])||0,
+          executed26:parseNum(dr[11])||0,
+        });
+      }
+      break;
+    }
+  }
+
+  // 5) 국내 투자 집행 리스트: 헤더에 "년도","결재일자","기업명"
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i];
+    if(rowHas(r,'년도','결재일자','기업명')){
+      for(let j=i+1;j<rows.length;j++){
+        const dr=rows[j];
+        if(isBlankRow(dr))break;
+        const year=String(dr[3]||'').trim();
+        const date=String(dr[4]||'').trim();
+        const company=String(dr[5]||'').trim();
+        // 년도/결재일자 둘 다 없으면 deal 영역 종료로 간주 (피벗 합계 등 차단)
+        if(!year && !date)break;
+        if(!company)continue;
+        if(/합계|총계|SUM/i.test(company))break;
+        const gp=String(dr[9]||'').trim();
+        const fund=String(dr[10]||'').trim();
+        deals.push({
+          kind:'국내',
+          fundCategory:'',
+          date,
+          company,
+          amount:parseNum(dr[8])||0,
+          gp,
+          fund,
+        });
+      }
+      break;
+    }
+  }
+
+  // 6) 해외 투자 리스트: 헤더에 "No","펀드명","투자기업명"
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i];
+    if(rowHas(r,'No','펀드명','투자기업명')){
+      for(let j=i+1;j<rows.length;j++){
+        const dr=rows[j];
+        if(isBlankRow(dr))break;
+        const no=String(dr[3]||'').trim();
+        // No가 숫자가 아니면 해외 deal 영역 종료
+        if(!no||!/^\d+(\.\d+)?$/.test(no))break;
+        const fund=String(dr[4]||'').trim();
+        const company=String(dr[5]||'').trim();
+        if(!company)continue;
+        if(/합계|총계/.test(company))break;
+        const amount=parseNum(dr[8])||0;
+        deals.push({
+          kind:'해외',
+          fundCategory:'해외펀드',
+          date:'',
+          company,
+          amount,
+          gp:'',
+          fund,
+        });
+      }
+      break;
+    }
+  }
+
+  fundData.gpDomestic=gpD;
+  fundData.gpIntl=gpI;
+  fundData.deals=deals;
+}
+
+// ── 렌더링 ─────────────────────────────────
+function fmtPctSafe(v){return isFinite(v)?(v*100).toFixed(1)+'%':'—%';}
+function pctNum(v){return isFinite(v)?+(v*100).toFixed(1):0;}
+function gaugeColor(rateNorm){
+  // [13차] 달성/충족된 모든 값은 주황색으로 통일. 0만 회색.
+  return rateNorm>0?'var(--or)':'#BBBBBB';
+}
+
+// ── [15차] 기준일자 셀렉터 ─────────────────────────────────
+function populateFundCutoffSelect(){
+  const sel=document.getElementById('fund-cutoff-select');
+  const row=document.getElementById('fund-cutoff-row');
+  if(!sel||!row)return;
+  const opts=(fundData.meta&&fundData.meta.cutoffOptions)||[];
+  if(!opts.length){
+    // 환율표가 비어있으면 셀렉터 숨김
+    row.style.display='none';
+    fundData.cutoff=null;
+    return;
+  }
+  row.style.display='';
+  // 현재 cutoff 결정: localStorage > 가장 최근 분기
+  let cur=fundData.cutoff;
+  if(!cur){
+    try{cur=localStorage.getItem('fund-cutoff-date')||null;}catch(e){}
+  }
+  if(!cur||!opts.includes(cur))cur=opts[opts.length-1];  // 디폴트: 최근 분기
+  fundData.cutoff=cur;
+  sel.innerHTML=opts.map(d=>{
+    const q=quarterLabel(d);
+    return `<option value="${d}"${d===cur?' selected':''}>${q} · ${d}</option>`;
+  }).join('');
+  updateFundCutoffChip();
+}
+
+function updateFundCutoffChip(){
+  const chip=document.getElementById('fund-cutoff-chip');
+  if(!chip)return;
+  const cur=fundData.cutoff;
+  if(!cur){chip.textContent='—';return;}
+  const fx=fxAt(cur);
+  // [17차] '기준환율 USD 1513.40원 · JPY 9.47원' 형태
+  const fxParts=[];
+  if(fx.usdKrw)fxParts.push(`USD ${fx.usdKrw.toFixed(2)}원`);
+  if(fx.jpyKrw)fxParts.push(`JPY ${fx.jpyKrw.toFixed(2)}원`);
+  chip.textContent=fxParts.length?`기준환율 ${fxParts.join(' · ')}`:'—';
+}
+
+function onFundCutoffChange(){
+  const sel=document.getElementById('fund-cutoff-select');
+  if(!sel)return;
+  fundData.cutoff=sel.value;
+  try{localStorage.setItem('fund-cutoff-date',sel.value);}catch(e){}
+  applyFundCutoff();
+  renderFundAll();
+}
+
+// ── [15차] cutoff 기반 KPI 재계산 (모드 A: 클라이언트 완전 통제) ──
+// 모든 actual/rate/score를 raw 데이터 + cutoff에서 직접 계산
+// 시트 17~18행 요약값은 진단/참고용으로만 보존
+function applyFundCutoff(){
+  const cutoff=fundData.cutoff;
+
+  // [17차] effective target 적용 — baseTarget(시트값) × 목표비율
+  //   baseTarget은 디테일 카드의 "기준 X억" 표시용, target은 rate 계산용
+  function applyEffectiveTarget(key,pct){
+    const o=fundData[key];
+    if(!o)return;
+    if(o._baseTarget==null && o.target>0)o._baseTarget=o.target;  // 첫 호출 시 시트값 백업
+    const bt=o._baseTarget||0;
+    o.baseTarget=bt;
+    o.target=bt*pct;
+  }
+  applyEffectiveTarget('domain',FUND_TARGETS.domain);          // 280억 × 80% = 224억
+  applyEffectiveTarget('gpDomestic',FUND_TARGETS.gpDomestic);  // 326.1억 × 110% = 358.8억
+  applyEffectiveTarget('gpIntl',FUND_TARGETS.gpIntl);          // 80.5억 × 100% = 80.5억
+
+  if(!cutoff){
+    // 환율표 없거나 cutoff 미선택 — 원본 백업 복원 + rate를 effective target 기준 재계산
+    if(fundData.domain._allFunds)fundData.domain.funds=[...fundData.domain._allFunds];
+    if(fundData.gpDomestic._allFunds)fundData.gpDomestic.funds=[...fundData.gpDomestic._allFunds];
+    if(fundData.gpIntl._allFunds)fundData.gpIntl.funds=[...fundData.gpIntl._allFunds];
+    if(fundData._allDeals)fundData.deals=[...fundData._allDeals];
+    if(fundData._allIntlDeals)fundData.intlDeals=[...fundData._allIntlDeals];
+    ['domain','gpDomestic','gpIntl'].forEach(k=>{
+      const o=fundData[k];
+      if(o && o.target>0){
+        o.rate=o.actual/o.target;
+        o.score=Math.max(0,Math.min(o.rate,1));
+      }
+    });
+    return;
+  }
+
+  // ━ KPI1: 전략 도메인 집중 출자 ━━━━━━━━━━━━━━━━━━
+  const allDomFunds=fundData.domain._allFunds||fundData.domain.funds||[];
+  const filteredDom=allDomFunds.filter(f=>{
+    const dn=f.resolutionDateNorm;
+    return dn && dn<=cutoff;
+  });
+  fundData.domain.funds=filteredDom;
+  fundData.domain.actual=filteredDom.reduce((s,f)=>s+(f.commitment||0),0);
+  fundData.domain.rate=fundData.domain.target>0?fundData.domain.actual/fundData.domain.target:0;
+  fundData.domain.score=Math.max(0,Math.min(fundData.domain.rate,1));
+
+  // ━ KPI2: 운용사 협력 (국내) ━━━━━━━━━━━━━━━━━━
+  const allDeals=fundData._allDeals||fundData.deals||[];
+  const allKDeals=allDeals.filter(d=>d.kind==='국내');
+  const filteredKDeals=allKDeals.filter(d=>{
+    const dn=parseFundDate(d.date);
+    return dn && dn<=cutoff;
+  });
+  fundData.gpDomestic.actual=filteredKDeals.reduce((s,d)=>s+(d.amount||0),0);
+  fundData.gpDomestic.rate=fundData.gpDomestic.target>0?fundData.gpDomestic.actual/fundData.gpDomestic.target:0;
+  fundData.gpDomestic.score=Math.max(0,Math.min(fundData.gpDomestic.rate,1));
+  // 펀드별 executed26 재계산 (cutoff까지 deal 합산)
+  if(fundData.gpDomestic._allFunds){
+    fundData.gpDomestic.funds=fundData.gpDomestic._allFunds.map(f=>{
+      const matched=filteredKDeals.filter(d=>(d.fund||'').trim()===(f.name||'').trim());
+      const exec=matched.reduce((s,d)=>s+(d.amount||0),0);
+      return {...f, executed26:exec};
+    });
+  }
+
+  // ━ KPI3: 운용사 협력 (해외) — 표 B 본 원천 ━━━━━━━━━━
+  const allIntl=fundData._allIntlDeals||fundData.intlDeals||[];
+  const filteredIntl=allIntl.filter(d=>{
+    const dn=d.invDateNorm;
+    return dn && dn<=cutoff;
+  });
+  fundData.intlDeals=filteredIntl;
+  fundData.gpIntl.actual=filteredIntl.reduce((s,d)=>s+toKrw(d.amount,d.currency,cutoff),0);
+  fundData.gpIntl.rate=fundData.gpIntl.target>0?fundData.gpIntl.actual/fundData.gpIntl.target:0;
+  fundData.gpIntl.score=Math.max(0,Math.min(fundData.gpIntl.rate,1));
+  // 표 A (해외펀드 detail): cutoff 환율로 원화 컬럼 재계산 + 펀드별 executedKrw를 deal 매칭으로 합산
+  if(fundData.gpIntl._allFunds){
+    const fx=fxAt(cutoff);
+    fundData.gpIntl.funds=fundData.gpIntl._allFunds.map(f=>{
+      const cur=String(f.currency||'').toUpperCase();
+      let rate=1;
+      if(cur==='USD')rate=fx.usdKrw||0;
+      else if(cur==='JPY')rate=fx.jpyKrw||0;
+      const neededKrw=(f.neededFx||0)*rate;
+      // 집행액: 표 B의 deal 단위 매칭 (펀드명 일치)
+      const matched=filteredIntl.filter(d=>(d.fund||'').trim()===(f.name||'').trim());
+      const executedKrw=matched.reduce((s,d)=>s+toKrw(d.amount,d.currency,cutoff),0);
+      return {...f, neededKrw, executedKrw};
+    });
+  }
+
+  // 국내 deals 필드 갱신 (cutoff 필터 적용)
+  const intlDealsLegacy=allDeals.filter(d=>d.kind==='해외');
+  fundData.deals=filteredKDeals.concat(intlDealsLegacy);
+}
+
+function renderFundAll(){
+  // [15차] cutoff 칩 갱신 (셀렉터 표시값과 동기화)
+  updateFundCutoffChip();
+  renderFundBanner();
+  // [17차] renderFundScoreBars 호출 제거 — 가중 득점 패널 삭제됨
+  renderFundDomainCard();
+  renderFundDomainChart();
+  renderFundDomainTable();
+  renderFundGPDomestic();
+  renderFundGPIntl();
+  renderFundDealsDomestic();
+  renderFundDealsIntl();
+  // [16차] 메타 바 제거 — 상단 cutoff 칩과 중복이라 삭제
+}
+
+function renderFundBanner(){
+  const d=fundData.domain,gd=fundData.gpDomestic,gi=fundData.gpIntl;
+  // [17차] 득점률 = 실적/목표 × 100% (최대 100%, 최소 0%). rate = actual/target.
+  const sD=Math.max(0,Math.min(1,d.rate||0));
+  const sGd=Math.max(0,Math.min(1,gd.rate||0));
+  const sGi=Math.max(0,Math.min(1,gi.rate||0));
+  const totalScore=sD*FUND_WEIGHTS.domain+sGd*FUND_WEIGHTS.gpDomestic+sGi*FUND_WEIGHTS.gpIntl;
+  document.getElementById('fund-total-val').textContent=(totalScore*100).toFixed(1)+'%';
+  document.getElementById('fund-total-sub').textContent=
+    `50%×${(sD*100).toFixed(1)} + 45%×${(sGd*100).toFixed(1)} + 5%×${(sGi*100).toFixed(1)}`;
+  document.getElementById('fund-d-banner-val').textContent=(sD*100).toFixed(1)+'%';
+  document.getElementById('fund-gpd-banner-val').textContent=(sGd*100).toFixed(1)+'%';
+  document.getElementById('fund-gpi-banner-val').textContent=(sGi*100).toFixed(1)+'%';
+}
+
+function renderFundScoreBars(){
+  const d=fundData.domain,gd=fundData.gpDomestic,gi=fundData.gpIntl;
+  const bars=[
+    {id:'fund-bar-d',val:'fund-bar-d-val',score:Math.max(0,Math.min(1,d.score||0))},
+    {id:'fund-bar-gpd',val:'fund-bar-gpd-val',score:Math.max(0,Math.min(1,gd.score||0))},
+    {id:'fund-bar-gpi',val:'fund-bar-gpi-val',score:Math.max(0,Math.min(1,gi.score||0))},
+  ];
+  bars.forEach(b=>{
+    const bar=document.getElementById(b.id);
+    const valEl=document.getElementById(b.val);
+    if(!bar||!valEl)return;
+    bar.style.width=(b.score*100).toFixed(1)+'%';
+    bar.style.background=gaugeColor(b.score);
+    valEl.textContent=(b.score*100).toFixed(1)+'%';
+  });
+}
+
+function renderFundDomainCard(){
+  const d=fundData.domain;
+  const actualEok=toEok(d.actual);
+  const baseEok=toEok(d.baseTarget||d.target);   // [17차] "기준 X억" = baseTarget (시트값)
+  const tgtEok=toEok(d.target);                  // 실효 목표 (= baseTarget × 80%)
+  document.getElementById('fund-d-actual').textContent=actualEok.toFixed(1);
+  document.getElementById('fund-d-target').textContent=baseEok.toFixed(0);  // 기준 X억
+  document.getElementById('fund-d-sub').textContent=`달성률 ${fmtPctSafe(d.rate)}`;
+  const pct=pctNum(d.rate);
+  const bar=document.getElementById('fund-d-bar');
+  bar.style.width=Math.min(pct,100)+'%';
+  bar.style.background=gaugeColor(d.rate);
+  document.getElementById('fund-d-pct').textContent=pct.toFixed(1)+'%';
+  // [17차] 게이지 우측 라벨: '목표 80%(224억)' 동적 표기
+  const tPct=(FUND_TARGETS.domain*100).toFixed(0);
+  document.getElementById('fund-d-target-lbl').textContent=`목표 ${tPct}%(${fmtEokSmart(tgtEok)}억)`;
+}
+
+// [11차] 도넛 차트로 변경 — 중앙 합계/목표/달성률 + 미달성분 회색 슬라이스
+const FUND_DONUT_PALETTE=['#FF5831','#FF7A5A','#1A7A4A','#1D4ED8','#7C3AED','#0891B2','#E58A2A','#BE185D','#B45309','#4D7C0F','#0F766E','#C2410C','#6D28D9','#047857','#9D174D'];
+function renderFundDomainChart(){
+  const wrap=document.getElementById('fund-d-chart-wrap');
+  const empty=document.getElementById('fund-d-chart-empty');
+  const funds=fundData.domain.funds||[];
+  if(!funds.length){wrap.style.display='none';empty.style.display='block';return;}
+  wrap.style.display='block';empty.style.display='none';
+
+  // 약정금액 기준 내림차순 정렬
+  const sorted=[...funds].sort((a,b)=>b.commitment-a.commitment);
+  const totalEok=sorted.reduce((s,f)=>s+toEok(f.commitment),0);
+  const targetEok=toEok(fundData.domain.target||0);  // 280억
+  const remainEok=Math.max(targetEok-totalEok,0);
+
+  // 도넛 슬라이스: 펀드들 + 미달성분
+  const labels=sorted.map(f=>f.name).concat(['목표 미달분']);
+  const data=sorted.map(f=>+(toEok(f.commitment)).toFixed(2)).concat([+remainEok.toFixed(2)]);
+  const colors=sorted.map((_,i)=>FUND_DONUT_PALETTE[i%FUND_DONUT_PALETTE.length]).concat(['#E5E3DC']);
+
+  if(fundDChart){fundDChart.destroy();fundDChart=null;}
+  const ctx=document.getElementById('fund-d-chart').getContext('2d');
+  fundDChart=new Chart(ctx,{
+    type:'doughnut',
+    data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#fff',hoverOffset:6}]},
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      cutout:'68%',
+      animation:{animateRotate:true,duration:500},
+      plugins:{
+        legend:{
+          position:'bottom',
+          align:'start',
+          labels:{
+            font:{size:11},
+            color:'#333',
+            padding:6,
+            usePointStyle:true,
+            pointStyle:'rectRounded',
+            boxWidth:10,
+            boxHeight:10,
+            generateLabels:(chart)=>{
+              const ds=chart.data.datasets[0];
+              return chart.data.labels.map((lbl,i)=>{
+                const v=ds.data[i];
+                const isRemain=lbl==='목표 미달분';
+                const shortName=lbl.length>22?lbl.slice(0,21)+'…':lbl;
+                return {
+                  text:isRemain
+                    ? `목표 미달분 · ${v.toFixed(1)}억`
+                    : `${shortName} · ${v.toFixed(1)}억`,
+                  fillStyle:ds.backgroundColor[i],
+                  strokeStyle:ds.backgroundColor[i],
+                  fontColor:isRemain?'#999':'#333',
+                  hidden:false,
+                  index:i,
+                  lineWidth:0,
+                };
+              });
+            }
+          }
+        },
+        tooltip:{
+          callbacks:{
+            label:c=>{
+              const v=c.parsed;
+              const ofTarget=targetEok>0?(v/targetEok*100).toFixed(1):'—';
+              if(c.label==='목표 미달분'){
+                return [
+                  ` 목표까지: ${v.toFixed(1)}억원`,
+                  ` 목표 대비: ${ofTarget}%`
+                ];
+              }
+              const fund=sorted[c.dataIndex];
+              const ofTotal=totalEok>0?(v/totalEok*100).toFixed(1):'—';
+              return [
+                ` 약정금액: ${v.toFixed(2)}억원`,
+                ` ${fund?.gp||'—'}`,
+                ` 누적 대비: ${ofTotal}% · 목표 대비: ${ofTarget}%`
+              ];
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // 중앙 텍스트 — 누적 합계 + 목표 + 달성률
+  const centerEl=document.getElementById('fund-d-chart-center');
+  if(centerEl){
+    const achv=targetEok>0?(totalEok/targetEok*100):0;
+    // [13차] 달성률 색상 통일 — 값 있으면 항상 주황
+    const achvColor=achv>0?'var(--or)':'#888';
+    centerEl.innerHTML=`
+      <div style="font-size:10px;color:var(--gray);font-weight:600;letter-spacing:.4px;text-transform:uppercase">누적 약정</div>
+      <div style="font-size:22px;font-weight:700;color:var(--black);margin-top:2px;font-variant-numeric:tabular-nums;letter-spacing:-.5px">${totalEok.toFixed(1)}<span style="font-size:12px;color:var(--gray);font-weight:500"> 억</span></div>
+      <div style="font-size:11px;color:var(--gray2);margin-top:1px">/ 목표 ${targetEok.toFixed(0)}억</div>
+      <div style="height:1px;background:#E5E3DC;margin:6px 16px"></div>
+      <div style="font-size:10px;color:var(--gray);font-weight:600;letter-spacing:.3px">달성률</div>
+      <div style="font-size:17px;font-weight:700;color:${achvColor};margin-top:1px;font-variant-numeric:tabular-nums">${achv.toFixed(1)}%</div>
+    `;
+  }
+}
+
+function renderFundDomainTable(){
+  const tbody=document.getElementById('fund-d-tbody');
+  const funds=fundData.domain.funds||[];
+  document.getElementById('fund-d-detail-title').innerHTML=`출자 펀드 상세 (${funds.length}건)<span class="ph-chev">▼</span>`;
+  if(!funds.length){tbody.innerHTML='<tr><td colspan="4" class="empty-state">출자 약정 펀드 없음</td></tr>';return;}
+  const sorted=[...funds].sort((a,b)=>b.commitment-a.commitment);
+  tbody.innerHTML=sorted.map(f=>`
+    <tr>
+      <td class="tl" style="font-weight:600">${escapeHtml(f.name)}</td>
+      <td class="tl">${escapeHtml(f.gp||'—')}</td>
+      <td class="tc"><span class="badge ${f.status==='운용'?'bok':'bnone'}">${escapeHtml(f.status||'—')}</span></td>
+      <td class="mono tr" style="font-weight:600">${toEok(f.commitment).toFixed(2)}</td>
+    </tr>
+  `).join('');
+}
+
+function renderFundGPDomestic(){
+  const d=fundData.gpDomestic;
+  const baseEok=toEok(d.baseTarget||d.target);  // [17차] "기준 X억" = baseTarget
+  const tgtEok=toEok(d.target);                  // 실효 목표
+  document.getElementById('fund-gpd-actual').textContent=toEok(d.actual).toFixed(1);
+  document.getElementById('fund-gpd-target').textContent=baseEok.toFixed(1);  // 기준 326.1억
+  document.getElementById('fund-gpd-sub').textContent=`달성률 ${fmtPctSafe(d.rate)}`;
+  // [17차] rate는 이미 effective target 기준 → 게이지에 그대로 사용
+  const pct=pctNum(d.rate);
+  const bar=document.getElementById('fund-gpd-bar');
+  bar.style.width=Math.min(pct,100)+'%';
+  bar.style.background=gaugeColor(d.rate);
+  document.getElementById('fund-gpd-pct').textContent=pct.toFixed(1)+'%';
+  // 게이지 우측 라벨: '목표 110%(358.8억)'
+  const tPct=(FUND_TARGETS.gpDomestic*100).toFixed(0);
+  document.getElementById('fund-gpd-target-lbl').textContent=`목표 ${tPct}%(${fmtEokSmart(tgtEok)}억)`;
+
+  // 펀드 테이블 (필요액 > 0 또는 집행액 > 0 인 것만 — '26 평가 대상 펀드)
+  const tbody=document.getElementById('fund-gpd-tbody');
+  const active=(d.funds||[]).filter(f=>f.needed26>0||f.executed26>0);
+  active.sort((a,b)=>b.executed26-a.executed26);
+  document.getElementById('fund-gpd-title').innerHTML=
+    `국내 펀드별 의무투자 현황 (${active.length}건)<span class="ph-chev">▼</span>`;
+  if(!active.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">평가 대상 펀드 없음</td></tr>';return;}
+  tbody.innerHTML=active.map(f=>{
+    const rate=f.needed26>0?f.executed26/f.needed26:(f.executed26>0?1:0);
+    const rPct=Math.min(rate*100,200);
+    const barColor=gaugeColor(rate);
+    return `<tr>
+      <td class="tl" style="font-weight:600">${escapeHtml(f.name)}</td>
+      <td class="tl" style="font-size:11px;color:var(--gray)">${escapeHtml(f.gp||'—')}</td>
+      <td class="mono tr">${fmtEokDeci(f.needed26)}</td>
+      <td class="mono tr" style="font-weight:600">${fmtEokDeci(f.executed26)}</td>
+      <td class="tr"><span class="mono" style="font-weight:700;color:${barColor}">${(rate*100).toFixed(1)}%</span><span class="mini-bar"><span style="width:${Math.min(rPct,100)}%;background:${barColor}"></span></span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderFundGPIntl(){
+  const d=fundData.gpIntl;
+  const baseEok=toEok(d.baseTarget||d.target);  // [17차] 기준
+  const tgtEok=toEok(d.target);                  // 실효 목표 (=baseTarget × 100%)
+  document.getElementById('fund-gpi-actual').textContent=toEok(d.actual).toFixed(1);
+  document.getElementById('fund-gpi-target').textContent=baseEok.toFixed(1);  // 기준 80.5억
+  document.getElementById('fund-gpi-sub').textContent=`달성률 ${fmtPctSafe(d.rate)}`;
+  // [17차] rate는 이미 effective target 기준
+  const pct=pctNum(d.rate);
+  const bar=document.getElementById('fund-gpi-bar');
+  bar.style.width=Math.min(pct,100)+'%';
+  bar.style.background=gaugeColor(d.rate);
+  document.getElementById('fund-gpi-pct').textContent=pct.toFixed(1)+'%';
+  // 게이지 우측 라벨: '목표 100%(80.5억)'
+  const tPct=(FUND_TARGETS.gpIntl*100).toFixed(0);
+  document.getElementById('fund-gpi-target-lbl').textContent=`목표 ${tPct}%(${fmtEokSmart(tgtEok)}억)`;
+
+  const tbody=document.getElementById('fund-gpi-tbody');
+  const active=(d.funds||[]).filter(f=>f.neededKrw>0||f.executedKrw>0);
+  active.sort((a,b)=>b.executedKrw-a.executedKrw);
+  document.getElementById('fund-gpi-title').innerHTML=
+    `해외 펀드별 한국기업 투자 현황 (${active.length}건)<span class="ph-chev">▼</span>`;
+  if(!active.length){tbody.innerHTML='<tr><td colspan="4" class="empty-state">평가 대상 펀드 없음</td></tr>';return;}
+  // 펀드명 + 운용사를 한 셀에 (좁아진 컬럼 대응)
+  tbody.innerHTML=active.map(f=>{
+    const rate=f.neededKrw>0?f.executedKrw/f.neededKrw:(f.executedKrw>0?1:0);
+    const barColor=gaugeColor(rate);
+    return `<tr>
+      <td class="tl">
+        <div style="font-weight:600">${escapeHtml(f.name)}</div>
+        <div style="font-size:10.5px;color:var(--gray);margin-top:2px">${escapeHtml(f.gp||'—')}</div>
+      </td>
+      <td class="tc">${escapeHtml(f.country||'—')}</td>
+      <td class="mono tr">${fmtEokDeci(f.neededKrw)}</td>
+      <td class="mono tr" style="font-weight:600;color:${barColor}">${fmtEokDeci(f.executedKrw)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// [10차] 국내 투자 집행 — 결재일 / 기업명(+업종) / 펀드명(+GP) / 금액
+function renderFundDealsDomestic(){
+  const tbody=document.getElementById('fund-deals-d-tbody');
+  const deals=(fundData.deals||[]).filter(d=>d.kind==='국내');
+  document.getElementById('fund-deals-d-title').innerHTML=
+    `2026 국내 투자 집행 (${deals.length}건)<span class="ph-chev">▼</span>`;
+  if(!deals.length){tbody.innerHTML='<tr><td colspan="4" class="empty-state">집행 데이터 없음</td></tr>';return;}
+  const sorted=[...deals].sort((a,b)=>{
+    const da=(a.date||'').replace(/\./g,'-');
+    const db=(b.date||'').replace(/\./g,'-');
+    return db.localeCompare(da);
+  });
+  tbody.innerHTML=sorted.map(d=>{
+    const fundLine=escapeHtml(d.fund||'—');
+    const gpLine=d.gp?`<div style="font-size:10.5px;color:var(--gray);margin-top:2px">${escapeHtml(d.gp)}</div>`:'';
+    const indLine=d.industry?`<div style="font-size:10.5px;color:var(--gray2);margin-top:2px">${escapeHtml(d.industry)}</div>`:'';
+    return `<tr>
+      <td class="mono tc">${escapeHtml(d.date||'—')}</td>
+      <td class="tl">
+        <div style="font-weight:600">${escapeHtml(d.company)}</div>
+        ${indLine}
+      </td>
+      <td class="tl">
+        <div style="font-size:12px;font-weight:500">${fundLine}</div>
+        ${gpLine}
+      </td>
+      <td class="mono tr" style="font-weight:600">${fmtEokDeci(d.amount)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// [16차] 해외 투자 집행 — 표 B 기반
+// 컬럼: 투자일자 / 기업명(괄호 제거) / 펀드명 / 원화환산 금액 + 그 아래 현지통화 금액
+function renderFundDealsIntl(){
+  const tbody=document.getElementById('fund-deals-i-tbody');
+  const cutoff=fundData.cutoff;
+  const deals=fundData.intlDeals||[];
+  document.getElementById('fund-deals-i-title').innerHTML=
+    `2026 해외 투자 집행 (${deals.length}건)<span class="ph-chev">▼</span>`;
+  if(!deals.length){tbody.innerHTML='<tr><td colspan="4" class="empty-state">집행 데이터 없음</td></tr>';return;}
+  // 투자일자 내림차순
+  const sorted=[...deals].sort((a,b)=>{
+    const da=a.invDateNorm||'', db=b.invDateNorm||'';
+    return db.localeCompare(da);
+  });
+  tbody.innerHTML=sorted.map(d=>{
+    const krw=toKrw(d.amount,d.currency,cutoff);
+    // 기업명에서 괄호 통화 표기 제거 ('SURI($300,000)' → 'SURI')
+    const cleanCompany=String(d.company||'').replace(/\s*\([^)]*\)\s*$/,'').trim()||d.company;
+    // 원화 금액 아래 현지통화 표시 (KRW면 생략)
+    const localLine=d.currency&&d.currency!=='KRW'
+      ? `<div style="font-size:10.5px;color:var(--gray);font-weight:500;margin-top:2px;font-variant-numeric:tabular-nums">${escapeHtml(d.currency)} ${d.amount.toLocaleString('en-US')}</div>`
+      : '';
+    return `<tr>
+      <td class="mono tc">${escapeHtml(d.invDate||'—')}</td>
+      <td class="tl" style="font-weight:600">${escapeHtml(cleanCompany)}</td>
+      <td class="tl" style="font-size:11.5px">${escapeHtml(d.fund||'—')}</td>
+      <td class="mono tr"><div style="font-weight:600">${fmtEokDeci(krw)}</div>${localLine}</td>
+    </tr>`;
+  }).join('');
+}
+
+function escapeHtml(s){
+  return String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+// ── 페이지 초기화 — 펀드팀 전용 페이지 (팀 전환은 헤더 탭 링크로 index.html 이동)
+const currentTeam='fund';
+function syncCurrentTeam(){fetchFundData();}
+window.addEventListener('load',()=>{fetchFundData();});
+</script>
+</body>
+</html>
