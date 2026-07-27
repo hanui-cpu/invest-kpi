@@ -76,7 +76,8 @@ module.exports = async (req, res) => {
       });
     }
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=3600'); // 5분 캐시
-    res.status(200).json({updated: new Date().toISOString().slice(0, 19), funds});
+    // 서버는 UTC로 돌므로 화면 표기용 시각은 한국시간(Asia/Seoul)으로 변환
+    res.status(200).json({updated: new Date().toLocaleString('sv-SE', {timeZone: 'Asia/Seoul'}).replace(' ', 'T'), funds});
   } catch (e) {
     res.status(500).json({error: 'sync_failed'});
   }
