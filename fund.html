@@ -1676,10 +1676,12 @@ function parseFundGP(rows){
     }
   }
 
-  // 4) 국내펀드 detail: 헤더에 "구분" 포함
+  // 4) 국내펀드 detail: 헤더에 "구분" 포함 + "국가" 없음
+  // ※ 해외 표 헤더의 "통화구분"에 '구분'이 부분 일치해 해외 헤더를 오인하던 버그 수정
+  //   — 해외 헤더에만 있는 "국가" 열의 부재를 함께 요구해 진짜 국내 헤더만 매칭
   for(let i=0;i<rows.length;i++){
     const r=rows[i];
-    if(rowHas(r,'구분','펀드명','운용사명')){
+    if(rowHas(r,'구분','펀드명','운용사명') && !rowHas(r,'국가')){
       for(let j=i+1;j<rows.length;j++){
         const dr=rows[j];
         if(isBlankRow(dr))break;
