@@ -118,6 +118,16 @@ body{background:var(--bg);color:var(--black);font-size:14px;line-height:1.6;-web
 .mx b{font-weight:700;color:var(--black2)}
 .mx.warn{border-color:#F0CE9A;background:var(--warn-bg);color:var(--warn)}
 .mx.warn b{color:var(--warn)}
+/* [15차] 하반기 실행 우선순위 — 얼마나 / 어디서 / 어느 재원으로 */
+.act{display:grid;grid-template-columns:20px 1fr;gap:10px;align-items:start;padding:7px 0}
+.act+.act{border-top:1px dashed var(--sf2)}
+.act-n{width:20px;height:20px;border-radius:50%;background:#111;color:#fff;font-size:10px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;margin-top:1px}
+.act-k{font-size:10px;font-weight:700;color:var(--gray2);letter-spacing:.5px;margin-right:6px}
+.act-t{font-size:12.5px;color:var(--black2);line-height:1.5}
+.act-t b{color:var(--black);font-weight:700}
+.act-s{display:block;font-size:11px;color:var(--gray);margin-top:3px;line-height:1.5}
+.act-s b{color:var(--black2);font-weight:600}
 .brief-insight{margin-top:14px;padding-top:14px;border-top:1px solid var(--sf2)}
 .brief-row{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.5}
 .brief-row+.brief-row{margin-top:8px}
@@ -509,6 +519,14 @@ table td,table th{font-variant-numeric:tabular-nums}
       <span class="brief-sec-n">라운드 · 도메인 편중</span>
     </div>
     <div class="brief-mix" id="brief-mix"></div>
+  </div>
+  <!-- [15차] 하반기 실행 우선순위 — 목표 미달분을 "얼마나 / 어디서 / 어느 재원으로" 채울지 연결 -->
+  <div class="brief-sec" id="brief-actions" hidden>
+    <div class="brief-sec-head">
+      <span class="brief-sec-t">하반기 실행 우선순위</span>
+      <span class="brief-sec-n" id="brief-actions-note"></span>
+    </div>
+    <div id="brief-actions-body"></div>
   </div>
   <div class="brief-insight" id="brief-insight" hidden>
     <div class="brief-row brief-diag"><span class="brief-ico">진단</span><span id="brief-diag-txt"></span></div>
@@ -1480,6 +1498,8 @@ function computeBriefing2026(){
   const seedCnt=roundSorted.filter(([k])=>EARLY_ROUNDS.has(k)).reduce((s,[,v])=>s+v.cnt,0);
   const keyAmt=sorted.filter(([d])=>KEY_DOMAINS.has(d)).reduce((s,[,v])=>s+v.amt,0)/1e8;
   const invested=new Set(sorted.map(([d])=>d));
+  // 금액 최다 도메인 (핵심 도메인 내부 편중 확인용) — sorted는 핵심 우선 정렬이라 별도로 최댓값을 찾는다
+  const topDomEntry=Object.entries(Object.fromEntries(sorted)).sort((a,b)=>b[1].amt-a[1].amt)[0];
   const mix={
     topRound:roundSorted.length?{name:roundSorted[0][0],cnt:roundSorted[0][1].cnt,
       ratio:budgetUsed?roundSorted[0][1].eok/budgetUsed*100:0}:null,
@@ -1490,11 +1510,32 @@ function computeBriefing2026(){
     keyMissing:[...KEY_DOMAINS].filter(d=>!invested.has(d)),
     nonKey:sorted.filter(([d])=>!KEY_DOMAINS.has(d))
       .map(([d,v])=>({domain:d,cnt:v.cnt,eok:v.amt/1e8})),
+    topDomain:topDomEntry?{domain:topDomEntry[0],cnt:topDomEntry[1].cnt,eok:topDomEntry[1].amt/1e8,
+      ratio:budgetUsed?topDomEntry[1].amt/1e8/budgetUsed*100:0}:null,
+  };
+
+  // [15차] 하반기 실행 우선순위 — "얼마나 / 어디서 / 어느 재원으로"를 숫자로 잇는다.
+  //   핵심 교차: 극초기 딜의 핵심 도메인 비중이 전체 집중도보다 낮으면
+  //   "미투자 핵심 도메인 × 시드·Pre-A" 소싱이 극초기·집중도를 동시에 끌어올린다.
+  const earlyKeyCnt=earlyDeals.filter(r=>KEY_DOMAINS.has((r[COL.minor]||'').trim())).length;
+  const avgDealAll=totCnt?budgetUsed/totCnt:0;
+  const avgDealEarly=earlyDeals.length?earlyEok/earlyDeals.length:avgDealAll;
+  const earlyRemain=Math.max(earlyTarget-earlyEok,0);
+  const sessionsLeft=Math.max(Math.ceil(monthsLeft),0); // 투심은 월 1회
+  const actions={
+    earlyRemain,
+    avgDealAll, avgDealEarly,
+    // "약 N건"이므로 반올림 — ceil을 쓰면 회당 건수(잔여÷평균÷회차)와 어긋나 보인다
+    dealsNeeded:(avgDealEarly>0&&earlyRemain>0)?Math.max(Math.round(earlyRemain/avgDealEarly),1):null,
+    dealsPerSession:(avgDealEarly>0&&sessionsLeft>0)?earlyRemain/avgDealEarly/sessionsLeft:null,
+    sessionsLeft,
+    earlyCnt:earlyDeals.length, earlyKeyCnt,
+    earlyKeyRatio:earlyDeals.length?earlyKeyCnt/earlyDeals.length*100:null,
   };
 
   return {concActual,concTarget,concRate,earlyEok,earlyTarget,earlyRate,
     exitEok,exitTarget,exitRate,exitCount,budgetUsed,budgetLimit,budgetRate,pace,
-    monthsDone,monthsLeft,tracks,mix};
+    monthsDone,monthsLeft,tracks,mix,actions};
 }
 
 function renderBriefing(yv){
@@ -1541,6 +1582,7 @@ function renderBriefing(yv){
 
   renderBriefTracks(m);
   renderBriefMix(m,lights);
+  renderBriefActions(m,lights);
   fetchBriefingText(buildAiMetrics(m,lights));
 }
 
@@ -1589,6 +1631,8 @@ function renderBriefMix(m,lights){
     t:`시드·Pre-A 비중 <b>${x.seed.ratio.toFixed(1)}%</b> (${x.seed.cnt}건 ${x.seed.eok.toFixed(1)}억)`});
   if(x.keyMissing.length)chips.push({warn:lights.conc!=='green',
     t:`핵심 도메인 미투자 <b>${x.keyMissing.length}개</b> · ${x.keyMissing.slice(0,4).map(d=>escapeHtml(KEY_SHORT[d]||d)).join(', ')}${x.keyMissing.length>4?' 외':''}`});
+  // 핵심 도메인 안에서의 편중 — 한 도메인이 과도하면 집중도가 높아도 분산 리스크가 있다
+  if(x.topDomain)chips.push({t:`최다 도메인 <b>${escapeHtml(KEY_SHORT[x.topDomain.domain]||x.topDomain.domain)} ${x.topDomain.ratio.toFixed(0)}%</b> (${x.topDomain.cnt}건 ${x.topDomain.eok.toFixed(1)}억)`});
   if(x.nonKey.length){
     const c=x.nonKey.reduce((s,d)=>s+d.cnt,0),a=x.nonKey.reduce((s,d)=>s+d.eok,0);
     chips.push({t:`비핵심 도메인 <b>${c}건 ${a.toFixed(1)}억</b> · ${x.nonKey.slice(0,3).map(d=>escapeHtml(d.domain)).join(', ')}${x.nonKey.length>3?' 외':''}`});
@@ -1596,6 +1640,55 @@ function renderBriefMix(m,lights){
   if(!chips.length){sec.hidden=true;return;}
   sec.hidden=false;
   box.innerHTML=chips.map(c=>`<span class="mx${c.warn?' warn':''}">${c.t}</span>`).join('');
+}
+
+// [15차] 하반기 실행 우선순위 — 목표 미달분을 "얼마나 / 어디서 / 어느 재원으로" 채울지 잇는다.
+//   숫자는 전부 위 섹션과 같은 값에서 나온다 (새 계산·추정 없음).
+function renderBriefActions(m,lights){
+  const sec=document.getElementById('brief-actions'),body=document.getElementById('brief-actions-body');
+  if(!sec||!body)return;
+  const a=m.actions,x=m.mix,rows=[];
+
+  // ① 얼마나 — 잔여 금액을 극초기 평균 딜 규모로 나눈 필요 건수
+  if(a.earlyRemain>0&&a.dealsNeeded){
+    rows.push({k:'얼마나',
+      t:`극초기 딜 <b>약 ${a.dealsNeeded}건</b>을 더 채워야 목표 ${m.earlyTarget}억에 닿습니다`,
+      s:`잔여 <b>${a.earlyRemain.toFixed(1)}억</b> ÷ 극초기 평균 딜 ${a.avgDealEarly.toFixed(1)}억`
+        +(a.dealsPerSession?` · 남은 투심 ${a.sessionsLeft}회 기준 회당 <b>약 ${a.dealsPerSession.toFixed(1)}건</b>`:'')
+        +` (상반기 ${a.earlyCnt}건)`});
+  }else if(a.earlyRemain<=0){
+    rows.push({k:'얼마나',t:`극초기 목표 <b>달성 완료</b> — 남은 기간은 집중도·회수 관리로 전환할 수 있습니다`,
+      s:`극초기 ${m.earlyEok.toFixed(1)}억 / 목표 ${m.earlyTarget}억`});
+  }
+
+  // ② 어디서 — 미투자 핵심 도메인 + 극초기×집중도 교차
+  if(x.keyMissing.length){
+    const cross=(a.earlyKeyRatio!=null&&a.earlyKeyRatio<m.concActual)
+      ? `극초기 ${a.earlyCnt}건 중 핵심 도메인은 <b>${a.earlyKeyCnt}건(${a.earlyKeyRatio.toFixed(0)}%)</b>으로 전체 집중도 ${m.concActual.toFixed(1)}%보다 낮습니다 — `
+        +`미투자 핵심 도메인에서 시드·Pre-A를 소싱하면 극초기와 집중도를 함께 끌어올립니다.`
+      : `핵심 도메인 커버리지 ${x.keyCovered}/${x.keyTotal}개 · 시드·Pre-A 비중 ${x.seed.ratio.toFixed(1)}%.`;
+    rows.push({k:'어디서',
+      t:`미투자 핵심 도메인 <b>${x.keyMissing.length}개</b> 우선 — ${x.keyMissing.map(d=>escapeHtml(KEY_SHORT[d]||d)).join(', ')}`,
+      s:cross});
+  }
+
+  // ③ 어느 재원으로 — 트랙별 여력 편차
+  const tn=m.tracks.normal,tf=m.tracks.follow,te=m.tracks.early;
+  if(tn&&tf&&te){
+    rows.push({k:'재원',
+      t:`신규 딜은 <b>극초기 트랙 ${Math.max(te.remain,0).toFixed(1)}억</b> 중심으로 — 일반투자 트랙 여력은 ${Math.max(tn.remain,0).toFixed(1)}억뿐입니다`,
+      s:`후속투자 ${Math.max(tf.remain,0).toFixed(1)}억은 별도 재원`
+        +(m.monthsLeft>0?` · 한도 내 하반기 월 집행 상한 <b>${(Math.max(m.budgetLimit-m.budgetUsed,0)/m.monthsLeft).toFixed(1)}억</b>`
+          +` (상반기 월 ${(m.budgetUsed/(m.monthsDone||1)).toFixed(1)}억)`:'')});
+  }
+
+  if(!rows.length){sec.hidden=true;return;}
+  sec.hidden=false;
+  document.getElementById('brief-actions-note').textContent='미달분을 채우는 데 필요한 양 · 대상 · 재원';
+  body.innerHTML=rows.map((r,i)=>`<div class="act">
+      <span class="act-n">${i+1}</span>
+      <span class="act-t"><span class="act-k">${r.k}</span>${r.t}<span class="act-s">${r.s}</span></span>
+    </div>`).join('');
 }
 
 // 서버(AI)에 넘길 숫자 묶음 — 값은 반올림만, 절대 바꾸지 않음
@@ -1631,6 +1724,18 @@ function buildAiMetrics(m,lights){
       keyDomainCovered:m.mix.keyCovered, keyDomainTotal:m.mix.keyTotal,
       keyDomainMissing:m.mix.keyMissing,
       nonKeyDomains:m.mix.nonKey.map(d=>({domain:d.domain,count:d.cnt,eok:r1(d.eok)})),
+      topDomain:m.mix.topDomain?{domain:m.mix.topDomain.domain,count:m.mix.topDomain.cnt,
+        eok:r1(m.mix.topDomain.eok),ratio:r1(m.mix.topDomain.ratio)}:null,
+    },
+    // [15차] 실행 우선순위 근거 — 화면에도 같은 숫자가 이미 표시된다
+    actions:{
+      earlyRemain:r1(m.actions.earlyRemain),
+      earlyDealsNeeded:m.actions.dealsNeeded,
+      earlyDealsPerSession:m.actions.dealsPerSession!=null?r1(m.actions.dealsPerSession):null,
+      sessionsLeft:m.actions.sessionsLeft,
+      avgDealEarly:r1(m.actions.avgDealEarly), avgDealAll:r1(m.actions.avgDealAll),
+      earlyCount:m.actions.earlyCnt, earlyKeyCount:m.actions.earlyKeyCnt,
+      earlyKeyRatio:m.actions.earlyKeyRatio!=null?r1(m.actions.earlyKeyRatio):null,
     },
   };
 }

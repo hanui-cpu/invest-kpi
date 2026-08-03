@@ -43,6 +43,10 @@ const SYSTEM_INSTRUCTION = `
   · 각 제안에 숫자 근거를 하나씩 넣어라 (예: "월 O억 페이스", "잔여 O억", "미투자 핵심 도메인 O개").
   · 회사명은 여전히 금지. 도메인명·라운드명·트랙명은 써도 된다.
   · 서로 겹치지 않게 쓴다. 트랙 간 배분 조정, 라운드 구성 조정, 도메인 소싱 우선순위처럼 각기 다른 레버를 제안하라.
+  · **두 개 이상의 지표를 잇는 제안을 최소 하나 넣어라.** 하나를 고치면 다른 하나도 같이 움직이는 지점을 찾아라
+    (예: 미투자 핵심 도메인에서 시드·Pre-A를 소싱하면 극초기와 집중도가 함께 올라간다).
+  · 화면에 이미 숫자로 표시된 것을 그대로 되풀이하지 말고, 순서·상충·부작용에 대한 판단을 더하라.
+    (예: 무엇을 먼저 할지, 무엇과 상충하는지, 무리하게 밀면 어떤 위험이 생기는지)
 `;
 
 const RESPONSE_SCHEMA = {
@@ -116,6 +120,29 @@ function buildPrompt(m) {
     if (Array.isArray(x.nonKeyDomains) && x.nonKeyDomains.length) {
       out.push(`- 집중도를 떨어뜨린 비핵심 도메인: ${x.nonKeyDomains.map((d) => `${d.domain}(${d.count}건 ${d.eok}억원)`).join(', ')}`);
     }
+    if (x.topDomain) out.push(`- 금액 최다 도메인: ${x.topDomain.domain} — 전체의 ${x.topDomain.ratio}% (${x.topDomain.count}건 ${x.topDomain.eok}억원)`);
+  }
+
+  // [15차] 실행 우선순위 근거 — 화면에 이미 표시되는 숫자다
+  const a = m.actions;
+  if (a) {
+    out.push('', '[하반기 실행 우선순위 — 화면에 이미 표시된 숫자]');
+    if (a.earlyDealsNeeded) {
+      out.push(`- 극초기 잔여 ${a.earlyRemain}억원 ÷ 극초기 평균 딜 ${a.avgDealEarly}억원 = 약 ${a.earlyDealsNeeded}건 추가 필요`
+        + (a.earlyDealsPerSession ? ` (남은 투심 ${a.sessionsLeft}회 기준 회당 약 ${a.earlyDealsPerSession}건, 상반기 ${a.earlyCount}건)` : ''));
+    }
+    if (a.avgDealEarly && a.avgDealAll) {
+      out.push(`- 딜 규모 구조: 극초기 평균 ${a.avgDealEarly}억원 vs 전체 평균 ${a.avgDealAll}억원`
+        + ' → 극초기는 딜당 금액이 작아 목표 금액을 채우려면 건수가 더 많이 필요하다');
+    }
+    if (a.earlyKeyRatio != null) {
+      out.push(`- 극초기 ${a.earlyCount}건 중 핵심 도메인 ${a.earlyKeyCount}건 (${a.earlyKeyRatio}%)`
+        + ` — 전체 도메인 집중도(${(k.concentration && k.concentration.actual) || '?'}%)와 비교하라.`
+        + ' 이 값이 더 낮으면 극초기 소싱이 핵심 도메인 밖에서 나오고 있다는 뜻이므로,'
+        + ' "미투자 핵심 도메인 × 시드·Pre-A" 소싱이 극초기와 집중도를 동시에 끌어올린다.');
+    }
+    out.push('  ※ 이 우선순위 숫자는 화면에 이미 보인다. 제안에서 그대로 되풀이하지 말고,'
+      + ' 순서·상충·리스크에 대한 판단을 더하라 (예: 무엇을 먼저, 무엇과 상충, 무리하면 어떤 부작용).');
   }
 
   return out.join('\n');
