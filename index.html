@@ -87,6 +87,47 @@ body{background:var(--bg);color:var(--black);font-size:14px;line-height:1.6;-web
 .bl-val{font-size:20px;font-weight:700;color:var(--black);letter-spacing:-.5px}
 .bl-unit{font-size:12px;font-weight:500;color:var(--gray);margin-left:2px}
 .bl-sub{font-size:11px;color:var(--gray);margin-top:3px}
+/* [15차] 신호등 카드 보조 한 줄 — 페이스/잔여 등 실행 정보 */
+.bl-pace{font-size:10.5px;color:var(--gray2);margin-top:3px;line-height:1.4}
+.bl-pace b{font-weight:700;color:var(--black2)}
+/* [15차] 브리핑 심층 분석 — 트랙별 예산 집행 + 구성 신호 */
+.brief-sec{margin-top:14px;padding-top:14px;border-top:1px solid var(--sf2)}
+.brief-sec-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+.brief-sec-t{font-size:12px;font-weight:700;color:var(--black2);letter-spacing:-.2px}
+.brief-sec-n{font-size:11px;color:var(--gray2)}
+.trk{display:grid;grid-template-columns:78px 1fr 128px 150px;gap:10px;align-items:center;font-size:12px;padding:6px 0}
+.trk+.trk{border-top:1px dashed var(--sf2)}
+.trk-name{font-weight:600;color:var(--black2);white-space:nowrap}
+.trk-bar{position:relative;height:12px;border-radius:6px;background:var(--sf2)}
+.trk-fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
+.trk-fill.green{background:var(--ok)}
+.trk-fill.yellow{background:var(--or)}
+.trk-fill.red{background:var(--bad)}
+.trk-mark{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--gray);opacity:.7}
+.trk-num{text-align:right;color:var(--gray);white-space:nowrap}
+.trk-num b{font-weight:700;color:var(--black)}
+.trk-note{text-align:right;font-size:11px;color:var(--gray);white-space:nowrap}
+.trk-note b{color:var(--black2);font-weight:700}
+.trk-x{display:inline-block;margin-left:5px;padding:1px 5px;border-radius:4px;font-size:10px;font-weight:700}
+.trk-x.green{color:var(--ok);background:var(--ok-bg)}
+.trk-x.yellow{color:var(--warn);background:var(--warn-bg)}
+.trk-x.red{color:var(--bad);background:var(--bad-bg)}
+@media(max-width:760px){.trk{grid-template-columns:78px 1fr;row-gap:3px}.trk-num,.trk-note{grid-column:2;text-align:left}}
+.brief-mix{display:flex;flex-wrap:wrap;gap:6px}
+.mx{display:inline-flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--sf2);border-radius:7px;padding:5px 9px;font-size:11px;color:var(--gray);line-height:1.4}
+.mx b{font-weight:700;color:var(--black2)}
+.mx.warn{border-color:#F0CE9A;background:var(--warn-bg);color:var(--warn)}
+.mx.warn b{color:var(--warn)}
+/* [15차] 하반기 실행 우선순위 — 얼마나 / 어디서 / 어느 재원으로 */
+.act{display:grid;grid-template-columns:20px 1fr;gap:10px;align-items:start;padding:7px 0}
+.act+.act{border-top:1px dashed var(--sf2)}
+.act-n{width:20px;height:20px;border-radius:50%;background:#111;color:#fff;font-size:10px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;margin-top:1px}
+.act-k{font-size:10px;font-weight:700;color:var(--gray2);letter-spacing:.5px;margin-right:6px}
+.act-t{font-size:12.5px;color:var(--black2);line-height:1.5}
+.act-t b{color:var(--black);font-weight:700}
+.act-s{display:block;font-size:11px;color:var(--gray);margin-top:3px;line-height:1.5}
+.act-s b{color:var(--black2);font-weight:600}
 .brief-insight{margin-top:14px;padding-top:14px;border-top:1px solid var(--sf2)}
 .brief-row{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.5}
 .brief-row+.brief-row{margin-top:8px}
@@ -463,6 +504,30 @@ table td,table th{font-variant-numeric:tabular-nums}
     </span>
   </div>
   <div class="brief-lights" id="brief-lights"></div>
+  <!-- [15차] 트랙별 예산 집행 — 투자계획(일반 125 / 후속 75 / 극초기 50억) 대비. 숫자는 딜 시트에서 코드로 계산 -->
+  <div class="brief-sec" id="brief-tracks" hidden>
+    <div class="brief-sec-head">
+      <span class="brief-sec-t">트랙별 예산 집행</span>
+      <span class="brief-sec-n" id="brief-tracks-note"></span>
+    </div>
+    <div id="brief-tracks-body"></div>
+  </div>
+  <!-- [15차] 구성 신호 — 라운드·도메인 편중 (KPI 미달의 구조적 원인 파악용) -->
+  <div class="brief-sec" id="brief-mix-sec" hidden>
+    <div class="brief-sec-head">
+      <span class="brief-sec-t">구성 신호</span>
+      <span class="brief-sec-n">라운드 · 도메인 편중</span>
+    </div>
+    <div class="brief-mix" id="brief-mix"></div>
+  </div>
+  <!-- [15차] 하반기 실행 우선순위 — 목표 미달분을 "얼마나 / 어디서 / 어느 재원으로" 채울지 연결 -->
+  <div class="brief-sec" id="brief-actions" hidden>
+    <div class="brief-sec-head">
+      <span class="brief-sec-t">하반기 실행 우선순위</span>
+      <span class="brief-sec-n" id="brief-actions-note"></span>
+    </div>
+    <div id="brief-actions-body"></div>
+  </div>
   <div class="brief-insight" id="brief-insight" hidden>
     <div class="brief-row brief-diag"><span class="brief-ico">진단</span><span id="brief-diag-txt"></span></div>
     <div class="brief-row brief-prop"><span class="brief-ico brief-ico-prop">제안</span><ul id="brief-prop-list"></ul></div>
@@ -764,6 +829,8 @@ const CSV_URL=`/api/sheet?doc=main`;
 //   K(10) 대분류(신규) | L(11) 중분류 | N(13) 투자금액 | O(14) 회수금액
 const COLUMN_MAP={
   company:0,   // A열 기업명
+  bizNo:2,     // C열 사업자등록번호 ([15차] 후속투자 판별 시 동일 기업 식별키 — 기업명 표기 변화에 안전)
+  round:9,     // J열 투자라운드 ([15차] 구성 신호: Seed/Pre-A 비중)
   date:3,      // D열 투자일자
   exitDate:4,  // E열 회수일자
   preValue:5,  // F열 Pre-value
@@ -779,6 +846,16 @@ const COL=COLUMN_MAP;
 const EARLY_TARGET_EOK_2026=50; // 2026년 극초기 목표 50억원
 // [추가] 연도별 회수 목표 (단위: 억원)
 const EXIT_TARGETS_EOK={2026:12.6,2027:22.7,2028:36.5,2029:55.7,2030:45.4};
+
+// [15차] 2026 트랙별 배정예산 (억원) — 출처: "투자팀 투자계획 26년" 시트
+//   전체 250억 = 일반 125 + 후속 75 + 극초기 50. 합계는 YEARLY_GOALS[2026].investLimit과 반드시 일치해야 한다.
+//   딜 시트에는 트랙 열이 없으므로(투자구분 열은 2026년 전 건이 'BATCH') 트랙은 classifyTrack()으로 파생한다.
+const TRACK_ALLOC_EOK_2026={normal:125,follow:75,early:50};
+const TRACK_META={
+  normal:{label:'일반투자',  kind:'cap'},  // cap  = 배정 한도 성격 (많이 남으면 여유)
+  follow:{label:'후속투자',  kind:'cap'},
+  early :{label:'극초기투자',kind:'goal'}, // goal = 채워야 하는 KPI 목표 (YEARLY_GOALS.earlyStage와 동일)
+};
 
 // [5차 추가] 연도별 KPI 활성화 규칙
 // domainFocus: 도메인 집중도 목표(%)
@@ -877,7 +954,8 @@ function populateYears(){
   sel.innerHTML='<option value="all">전체 연도</option>'+years.map(y=>`<option value="${y}">${y}년</option>`).join('');
   if(years.includes(+cur))sel.value=cur;else if(years.length)sel.value=String(years[0]);
 }
-function qi(str){if(!str)return null;const d=new Date(str.trim());if(isNaN(d))return null;return{y:d.getFullYear(),q:Math.ceil((d.getMonth()+1)/3)};}
+// [15차] m(월) 필드 추가 — 브리핑 페이스 계산용. 기존 y/q 동작은 그대로다.
+function qi(str){if(!str)return null;const d=new Date(str.trim());if(isNaN(d))return null;return{y:d.getFullYear(),m:d.getMonth()+1,q:Math.ceil((d.getMonth()+1)/3)};}
 // [수정] 투자현황/극초기상세 기준일자 — 과거(2025년 이전)는 투자일자(D열), 2026년부터는 의결일자(P열) 기준
 function effDate(r){
   const investRaw=(r[COL.date]||'').trim();
@@ -1304,6 +1382,57 @@ function lightFlow(rate,pacePct){ // 극초기·회수(누적): 달성률 vs 경
 function lightCeiling(rate){ // 투자한도: 소진율
   return rate>100?'red':rate>=90?'yellow':'green';
 }
+// [15차] 트랙 배정예산(cap) 판정 — 소진율만 보면 "경과율보다 훨씬 앞서 소진된 트랙"을 놓친다.
+//   초과=red, 90% 이상=yellow, 경과율보다 20%p 이상 앞서 소진=yellow(잔여 여력 부족 주의), 그 외 green
+function lightTrackCap(rate,pacePct){
+  if(rate>100)return 'red';
+  if(rate>=90)return 'yellow';
+  return (rate-pacePct>=20)?'yellow':'green';
+}
+
+// ── [15차] 트랙(일반/후속/극초기) 파생 ─────────────────────────────
+// 딜 시트에 트랙 열이 없어서 아래 규칙으로 만든다. "투자팀 투자계획 26년" 시트의
+// (후)/(초) 표기와 대조 검증함 (2026 상반기: 후속 5건 32.4억 ≈ 계획 32.5억, 극초기 3건 11.5억).
+//   극초기 = G열 '극초기 여부'가 '여'
+//   후속   = 같은 기업의 더 이른 투자 이력이 있음 (사업자등록번호 우선, 없으면 정규화 기업명)
+//   일반   = 나머지
+function normCompany(s){
+  return String(s||'').replace(/\(주\)|\(유\)|주식회사|㈜/g,'').replace(/\s+/g,'').trim();
+}
+function dealIdent(r){
+  const biz=String(r[COL.bizNo]||'').replace(/\D/g,'');
+  return biz?('B:'+biz):('N:'+normCompany(r[COL.company]));
+}
+// 기업별 투자 시점 목록 — 후속 판별용 (rawData 전체 기준, 연도 무관)
+function buildInvestHistory(){
+  const hist={};
+  rawData.forEach(r=>{
+    const t=Date.parse(effDate(r));
+    if(isNaN(t))return;
+    const k=dealIdent(r);
+    (hist[k]=hist[k]||[]).push(t);
+  });
+  return hist;
+}
+function classifyTrack(r,hist){
+  if(String(r[COL.earlyFlag]||'').trim()==='여')return 'early';
+  const t=Date.parse(effDate(r));
+  if(!isNaN(t)&&(hist[dealIdent(r)]||[]).some(o=>o<t))return 'follow';
+  return 'normal';
+}
+// 잔여분을 남은 기간에 채우려면 월 얼마가 필요한지
+//  monthsDone : 실적이 실제 반영된 개월 수 (월평균의 분모)
+//  monthsLeft : 오늘~연말 잔여 개월 (필요 월 금액의 분모)
+function paceOf(actualEok,targetEok,monthsDone,monthsLeft){
+  const perMonth=monthsDone>0?actualEok/monthsDone:0;
+  const remain=targetEok-actualEok;
+  const needPerMonth=(remain>0&&monthsLeft>0)?remain/monthsLeft:0;
+  return {
+    perMonth, remain, needPerMonth,
+    mult:(needPerMonth>0&&perMonth>0)?needPerMonth/perMonth:null,
+    landing:perMonth*12,
+  };
+}
 
 // 4개 KPI를 2026 기준으로 계산 (기존 카드와 완전히 동일한 공식·데이터 사용)
 function computeBriefing2026(){
@@ -1332,8 +1461,81 @@ function computeBriefing2026(){
   const budgetRate=budgetLimit?budgetUsed/budgetLimit*100:0;
 
   const pace=yearElapsed(YEAR);
+
+  // [15차] 페이스 기준 개월 — 월평균은 "데이터가 반영된 개월"로, 필요 월 금액은 "잔여 일수"로 나눈다.
+  const monthsDone=cardData.reduce((mx,r)=>{const i=qi(effDate(r));return i&&i.m>mx?i.m:mx;},0);
+  const monthsLeft=Math.max(pace.daysLeft/365*12,0);
+
+  // [15차] 트랙별 집행 (투자계획 배정예산 대비)
+  const hist=buildInvestHistory();
+  const tracks={};
+  Object.keys(TRACK_ALLOC_EOK_2026).forEach(k=>{
+    tracks[k]={key:k,label:TRACK_META[k].label,kind:TRACK_META[k].kind,
+      alloc:TRACK_ALLOC_EOK_2026[k],cnt:0,eok:0};
+  });
+  cardData.forEach(r=>{
+    const t=tracks[classifyTrack(r,hist)];
+    t.cnt++;t.eok+=parseAmt(r[COL.amount])/1e8;
+  });
+  Object.values(tracks).forEach(t=>{
+    t.rate=t.alloc?t.eok/t.alloc*100:0;
+    t.remain=t.alloc-t.eok;
+    t.pace=paceOf(t.eok,t.alloc,monthsDone,monthsLeft);
+    // cap(배정 한도)은 소진율+경과율 대비로, goal(극초기 KPI)은 달성 페이스로 판정
+    t.light=t.kind==='cap'?lightTrackCap(t.rate,pace.pct):lightFlow(t.rate,pace.pct);
+  });
+
+  // [15차] 구성 신호 — 라운드/도메인 편중
+  const roundTally={};
+  cardData.forEach(r=>{
+    const k=(r[COL.round]||'미기재').trim()||'미기재';
+    if(!roundTally[k])roundTally[k]={cnt:0,eok:0};
+    roundTally[k].cnt++;roundTally[k].eok+=parseAmt(r[COL.amount])/1e8;
+  });
+  const roundSorted=Object.entries(roundTally).sort((a,b)=>b[1].eok-a[1].eok);
+  const EARLY_ROUNDS=new Set(['Seed','Pre-A','Pre A','Pre-Seed','시드']);
+  const seedEok=roundSorted.filter(([k])=>EARLY_ROUNDS.has(k)).reduce((s,[,v])=>s+v.eok,0);
+  const seedCnt=roundSorted.filter(([k])=>EARLY_ROUNDS.has(k)).reduce((s,[,v])=>s+v.cnt,0);
+  const keyAmt=sorted.filter(([d])=>KEY_DOMAINS.has(d)).reduce((s,[,v])=>s+v.amt,0)/1e8;
+  const invested=new Set(sorted.map(([d])=>d));
+  // 금액 최다 도메인 (핵심 도메인 내부 편중 확인용) — sorted는 핵심 우선 정렬이라 별도로 최댓값을 찾는다
+  const topDomEntry=Object.entries(Object.fromEntries(sorted)).sort((a,b)=>b[1].amt-a[1].amt)[0];
+  const mix={
+    topRound:roundSorted.length?{name:roundSorted[0][0],cnt:roundSorted[0][1].cnt,
+      ratio:budgetUsed?roundSorted[0][1].eok/budgetUsed*100:0}:null,
+    seed:{cnt:seedCnt,eok:seedEok,ratio:budgetUsed?seedEok/budgetUsed*100:0},
+    concByAmount:budgetUsed?keyAmt/budgetUsed*100:0,
+    keyCovered:[...KEY_DOMAINS].filter(d=>invested.has(d)).length,
+    keyTotal:KEY_DOMAINS.size,
+    keyMissing:[...KEY_DOMAINS].filter(d=>!invested.has(d)),
+    nonKey:sorted.filter(([d])=>!KEY_DOMAINS.has(d))
+      .map(([d,v])=>({domain:d,cnt:v.cnt,eok:v.amt/1e8})),
+    topDomain:topDomEntry?{domain:topDomEntry[0],cnt:topDomEntry[1].cnt,eok:topDomEntry[1].amt/1e8,
+      ratio:budgetUsed?topDomEntry[1].amt/1e8/budgetUsed*100:0}:null,
+  };
+
+  // [15차] 하반기 실행 우선순위 — "얼마나 / 어디서 / 어느 재원으로"를 숫자로 잇는다.
+  //   핵심 교차: 극초기 딜의 핵심 도메인 비중이 전체 집중도보다 낮으면
+  //   "미투자 핵심 도메인 × 시드·Pre-A" 소싱이 극초기·집중도를 동시에 끌어올린다.
+  const earlyKeyCnt=earlyDeals.filter(r=>KEY_DOMAINS.has((r[COL.minor]||'').trim())).length;
+  const avgDealAll=totCnt?budgetUsed/totCnt:0;
+  const avgDealEarly=earlyDeals.length?earlyEok/earlyDeals.length:avgDealAll;
+  const earlyRemain=Math.max(earlyTarget-earlyEok,0);
+  const sessionsLeft=Math.max(Math.ceil(monthsLeft),0); // 투심은 월 1회
+  const actions={
+    earlyRemain,
+    avgDealAll, avgDealEarly,
+    // "약 N건"이므로 반올림 — ceil을 쓰면 회당 건수(잔여÷평균÷회차)와 어긋나 보인다
+    dealsNeeded:(avgDealEarly>0&&earlyRemain>0)?Math.max(Math.round(earlyRemain/avgDealEarly),1):null,
+    dealsPerSession:(avgDealEarly>0&&sessionsLeft>0)?earlyRemain/avgDealEarly/sessionsLeft:null,
+    sessionsLeft,
+    earlyCnt:earlyDeals.length, earlyKeyCnt,
+    earlyKeyRatio:earlyDeals.length?earlyKeyCnt/earlyDeals.length*100:null,
+  };
+
   return {concActual,concTarget,concRate,earlyEok,earlyTarget,earlyRate,
-    exitEok,exitTarget,exitRate,exitCount,budgetUsed,budgetLimit,budgetRate,pace};
+    exitEok,exitTarget,exitRate,exitCount,budgetUsed,budgetLimit,budgetRate,pace,
+    monthsDone,monthsLeft,tracks,mix,actions};
 }
 
 function renderBriefing(yv){
@@ -1350,20 +1552,143 @@ function renderBriefing(yv){
     exit:lightFlow(m.exitRate,m.pace.pct),
     budget:lightCeiling(m.budgetRate),
   };
+  // [15차] 각 카드에 실행 정보 한 줄(pace) 추가 — "그래서 얼마가 더 필요한가"를 바로 보여준다
+  const earlyPace=paceOf(m.earlyEok,m.earlyTarget,m.monthsDone,m.monthsLeft);
+  const exitPace=paceOf(m.exitEok,m.exitTarget,m.monthsDone,m.monthsLeft);
+  const budgetRoom=Math.max(m.budgetLimit-m.budgetUsed,0);
   const cells=[
-    {light:lights.conc,  label:'도메인 집중도', val:m.concActual.toFixed(1), unit:'%',      sub:`목표 ${m.concTarget}%`},
-    {light:lights.early, label:'극초기 투자',   val:m.earlyEok.toFixed(1),   unit:'억',     sub:`목표 ${m.earlyTarget}억 · ${m.earlyRate.toFixed(0)}%`},
-    {light:lights.exit,  label:'회수',          val:m.exitEok.toFixed(1),    unit:'억',     sub:`목표 ${m.exitTarget}억 · ${m.exitRate.toFixed(0)}%`},
-    {light:lights.budget,label:'투자한도',      val:m.budgetRate.toFixed(0), unit:'% 소진', sub:`여유 ${Math.max(m.budgetLimit-m.budgetUsed,0).toFixed(0)}억`},
+    {light:lights.conc,  label:'도메인 집중도', val:m.concActual.toFixed(1), unit:'%',      sub:`목표 ${m.concTarget}%`,
+     pace:`금액 기준 <b>${m.mix.concByAmount.toFixed(1)}%</b> · 핵심 도메인 ${m.mix.keyCovered}/${m.mix.keyTotal}개 투자`},
+    {light:lights.early, label:'극초기 투자',   val:m.earlyEok.toFixed(1),   unit:'억',     sub:`목표 ${m.earlyTarget}억 · ${m.earlyRate.toFixed(0)}%`,
+     pace:earlyPace.remain>0
+       ? `잔여 ${earlyPace.remain.toFixed(1)}억 · 월 <b>${earlyPace.needPerMonth.toFixed(1)}억</b> 필요${earlyPace.mult?` (${earlyPace.mult.toFixed(1)}배)`:''}`
+       : `목표 달성 · 초과 ${Math.abs(earlyPace.remain).toFixed(1)}억`},
+    {light:lights.exit,  label:'회수',          val:m.exitEok.toFixed(1),    unit:'억',     sub:`목표 ${m.exitTarget}억 · ${m.exitRate.toFixed(0)}%`,
+     pace:exitPace.remain>0
+       ? `잔여 ${exitPace.remain.toFixed(1)}억 · 월 <b>${exitPace.needPerMonth.toFixed(1)}억</b> 필요 · ${m.exitCount}건`
+       : `목표 <b>초과 +${Math.abs(exitPace.remain).toFixed(1)}억</b> · ${m.exitCount}건`},
+    {light:lights.budget,label:'투자한도',      val:m.budgetRate.toFixed(0), unit:'% 소진', sub:`여유 ${budgetRoom.toFixed(0)}억`,
+     pace:m.monthsLeft>0
+       ? `하반기 월 <b>${(budgetRoom/m.monthsLeft).toFixed(1)}억</b>까지 집행 가능 (상반기 월 ${(m.budgetUsed/(m.monthsDone||1)).toFixed(1)}억)`
+       : `연말 마감`},
   ];
   document.getElementById('brief-lights').innerHTML=cells.map(c=>`
     <div class="bl-cell ${c.light}">
       <div class="bl-top"><span class="bl-dot"></span><span class="bl-label">${c.label}</span></div>
       <div class="bl-val">${c.val}<span class="bl-unit">${c.unit}</span></div>
       <div class="bl-sub">${c.sub}</div>
+      ${c.pace?`<div class="bl-pace">${c.pace}</div>`:''}
     </div>`).join('');
 
+  renderBriefTracks(m);
+  renderBriefMix(m,lights);
+  renderBriefActions(m,lights);
   fetchBriefingText(buildAiMetrics(m,lights));
+}
+
+// [15차] 트랙별 예산 집행 — 총 한도만 보면 놓치는 "트랙별 여력 편차"를 드러낸다
+function renderBriefTracks(m){
+  const sec=document.getElementById('brief-tracks'),body=document.getElementById('brief-tracks-body');
+  if(!sec||!body)return;
+  const order=['normal','follow','early'].filter(k=>m.tracks[k]);
+  if(!order.length){sec.hidden=true;return;}
+  sec.hidden=false;
+  const elapsed=Math.min(m.pace.pct,100);
+  document.getElementById('brief-tracks-note').textContent=
+    `투자계획 기준 · 합계 ${m.budgetUsed.toFixed(1)}/${m.budgetLimit}억 (${m.budgetRate.toFixed(0)}%)`
+    +` · 연중 ${m.pace.pct.toFixed(0)}% 경과`
+    +(m.monthsDone?` · 데이터 ${m.monthsDone}월까지 반영`:'');
+  body.innerHTML=order.map(k=>{
+    const t=m.tracks[k];
+    let note;
+    if(t.remain<0){
+      note=`배정 <b>초과 ${Math.abs(t.remain).toFixed(1)}억</b>`;
+    }else if(t.kind==='goal'){
+      note=`하반기 월 <b>${t.pace.needPerMonth.toFixed(1)}억</b> 필요`
+        +(t.pace.mult?`<span class="trk-x ${t.light}">${t.pace.mult.toFixed(1)}배</span>`:'');
+    }else{
+      note=`잔여 <b>${t.remain.toFixed(1)}억</b> · 월 ${m.monthsLeft>0?(t.remain/m.monthsLeft).toFixed(1):'—'}억 여력`;
+    }
+    return `<div class="trk">
+      <span class="trk-name">${t.label}</span>
+      <span class="trk-bar" title="집행 ${t.rate.toFixed(0)}% · 회색선=연중 경과율 ${m.pace.pct.toFixed(0)}%">
+        <span class="trk-fill ${t.light}" style="width:${Math.min(t.rate,100)}%"></span>
+        <span class="trk-mark" style="left:${elapsed}%"></span>
+      </span>
+      <span class="trk-num"><b>${t.eok.toFixed(1)}</b> / ${t.alloc}억 · ${t.rate.toFixed(0)}%</span>
+      <span class="trk-note">${note}</span>
+    </div>`;
+  }).join('');
+}
+
+// [15차] 구성 신호 — 극초기 미달·집중도의 구조적 원인을 한눈에
+function renderBriefMix(m,lights){
+  const sec=document.getElementById('brief-mix-sec'),box=document.getElementById('brief-mix');
+  if(!sec||!box)return;
+  const x=m.mix,chips=[];
+  if(x.topRound)chips.push({t:`최다 라운드 <b>${escapeHtml(x.topRound.name)} ${x.topRound.ratio.toFixed(0)}%</b> (${x.topRound.cnt}건)`});
+  chips.push({warn:lights.early!=='green',
+    t:`시드·Pre-A 비중 <b>${x.seed.ratio.toFixed(1)}%</b> (${x.seed.cnt}건 ${x.seed.eok.toFixed(1)}억)`});
+  if(x.keyMissing.length)chips.push({warn:lights.conc!=='green',
+    t:`핵심 도메인 미투자 <b>${x.keyMissing.length}개</b> · ${x.keyMissing.slice(0,4).map(d=>escapeHtml(KEY_SHORT[d]||d)).join(', ')}${x.keyMissing.length>4?' 외':''}`});
+  // 핵심 도메인 안에서의 편중 — 한 도메인이 과도하면 집중도가 높아도 분산 리스크가 있다
+  if(x.topDomain)chips.push({t:`최다 도메인 <b>${escapeHtml(KEY_SHORT[x.topDomain.domain]||x.topDomain.domain)} ${x.topDomain.ratio.toFixed(0)}%</b> (${x.topDomain.cnt}건 ${x.topDomain.eok.toFixed(1)}억)`});
+  if(x.nonKey.length){
+    const c=x.nonKey.reduce((s,d)=>s+d.cnt,0),a=x.nonKey.reduce((s,d)=>s+d.eok,0);
+    chips.push({t:`비핵심 도메인 <b>${c}건 ${a.toFixed(1)}억</b> · ${x.nonKey.slice(0,3).map(d=>escapeHtml(d.domain)).join(', ')}${x.nonKey.length>3?' 외':''}`});
+  }
+  if(!chips.length){sec.hidden=true;return;}
+  sec.hidden=false;
+  box.innerHTML=chips.map(c=>`<span class="mx${c.warn?' warn':''}">${c.t}</span>`).join('');
+}
+
+// [15차] 하반기 실행 우선순위 — 목표 미달분을 "얼마나 / 어디서 / 어느 재원으로" 채울지 잇는다.
+//   숫자는 전부 위 섹션과 같은 값에서 나온다 (새 계산·추정 없음).
+function renderBriefActions(m,lights){
+  const sec=document.getElementById('brief-actions'),body=document.getElementById('brief-actions-body');
+  if(!sec||!body)return;
+  const a=m.actions,x=m.mix,rows=[];
+
+  // ① 얼마나 — 잔여 금액을 극초기 평균 딜 규모로 나눈 필요 건수
+  if(a.earlyRemain>0&&a.dealsNeeded){
+    rows.push({k:'얼마나',
+      t:`극초기 딜 <b>약 ${a.dealsNeeded}건</b>을 더 채워야 목표 ${m.earlyTarget}억에 닿습니다`,
+      s:`잔여 <b>${a.earlyRemain.toFixed(1)}억</b> ÷ 극초기 평균 딜 ${a.avgDealEarly.toFixed(1)}억`
+        +(a.dealsPerSession?` · 남은 투심 ${a.sessionsLeft}회 기준 회당 <b>약 ${a.dealsPerSession.toFixed(1)}건</b>`:'')
+        +` (상반기 ${a.earlyCnt}건)`});
+  }else if(a.earlyRemain<=0){
+    rows.push({k:'얼마나',t:`극초기 목표 <b>달성 완료</b> — 남은 기간은 집중도·회수 관리로 전환할 수 있습니다`,
+      s:`극초기 ${m.earlyEok.toFixed(1)}억 / 목표 ${m.earlyTarget}억`});
+  }
+
+  // ② 어디서 — 미투자 핵심 도메인 + 극초기×집중도 교차
+  if(x.keyMissing.length){
+    const cross=(a.earlyKeyRatio!=null&&a.earlyKeyRatio<m.concActual)
+      ? `극초기 ${a.earlyCnt}건 중 핵심 도메인은 <b>${a.earlyKeyCnt}건(${a.earlyKeyRatio.toFixed(0)}%)</b>으로 전체 집중도 ${m.concActual.toFixed(1)}%보다 낮습니다 — `
+        +`미투자 핵심 도메인에서 시드·Pre-A를 소싱하면 극초기와 집중도를 함께 끌어올립니다.`
+      : `핵심 도메인 커버리지 ${x.keyCovered}/${x.keyTotal}개 · 시드·Pre-A 비중 ${x.seed.ratio.toFixed(1)}%.`;
+    rows.push({k:'어디서',
+      t:`미투자 핵심 도메인 <b>${x.keyMissing.length}개</b> 우선 — ${x.keyMissing.map(d=>escapeHtml(KEY_SHORT[d]||d)).join(', ')}`,
+      s:cross});
+  }
+
+  // ③ 어느 재원으로 — 트랙별 여력 편차
+  const tn=m.tracks.normal,tf=m.tracks.follow,te=m.tracks.early;
+  if(tn&&tf&&te){
+    rows.push({k:'재원',
+      t:`신규 딜은 <b>극초기 트랙 ${Math.max(te.remain,0).toFixed(1)}억</b> 중심으로 — 일반투자 트랙 여력은 ${Math.max(tn.remain,0).toFixed(1)}억뿐입니다`,
+      s:`후속투자 ${Math.max(tf.remain,0).toFixed(1)}억은 별도 재원`
+        +(m.monthsLeft>0?` · 한도 내 하반기 월 집행 상한 <b>${(Math.max(m.budgetLimit-m.budgetUsed,0)/m.monthsLeft).toFixed(1)}억</b>`
+          +` (상반기 월 ${(m.budgetUsed/(m.monthsDone||1)).toFixed(1)}억)`:'')});
+  }
+
+  if(!rows.length){sec.hidden=true;return;}
+  sec.hidden=false;
+  document.getElementById('brief-actions-note').textContent='미달분을 채우는 데 필요한 양 · 대상 · 재원';
+  body.innerHTML=rows.map((r,i)=>`<div class="act">
+      <span class="act-n">${i+1}</span>
+      <span class="act-t"><span class="act-k">${r.k}</span>${r.t}<span class="act-s">${r.s}</span></span>
+    </div>`).join('');
 }
 
 // 서버(AI)에 넘길 숫자 묶음 — 값은 반올림만, 절대 바꾸지 않음
@@ -1378,7 +1703,40 @@ function buildAiMetrics(m,lights){
       early:        {label:'극초기 투자금액', actual:r1(m.earlyEok),   target:m.earlyTarget, unit:'억원', rate:r1(m.earlyRate),  kind:'flow',    light:lights.early},
       exit:         {label:'회수금액',        actual:r1(m.exitEok),    target:m.exitTarget,  unit:'억원', rate:r1(m.exitRate),   kind:'flow',    light:lights.exit, count:m.exitCount},
       budget:       {label:'투자한도 소진',   used:r1(m.budgetUsed),   limit:m.budgetLimit,  unit:'억원', rate:r1(m.budgetRate), kind:'ceiling', light:lights.budget},
-    }
+    },
+    // [15차] 심층 분석 입력 — 트랙별 예산 집행 / 필요 페이스 / 구성 편중. 값은 반올림만 한다.
+    tracks:Object.keys(m.tracks).map(k=>{
+      const t=m.tracks[k];
+      return {key:k,label:t.label,kind:t.kind,alloc:t.alloc,used:r1(t.eok),count:t.cnt,
+        rate:r1(t.rate),remain:r1(t.remain),needPerMonth:r1(t.pace.needPerMonth),
+        multipleNeeded:t.pace.mult!=null?r1(t.pace.mult):null,light:t.light};
+    }),
+    pace:{
+      monthsDone:m.monthsDone, monthsLeft:r1(m.monthsLeft),
+      budgetPerMonthSoFar:r1(m.budgetUsed/(m.monthsDone||1)),
+      budgetAllowedPerMonth:m.monthsLeft>0?r1(Math.max(m.budgetLimit-m.budgetUsed,0)/m.monthsLeft):null,
+      budgetLandingIfSamePace:r1(m.budgetUsed/(m.monthsDone||1)*12),
+    },
+    mix:{
+      topRound:m.mix.topRound?{name:m.mix.topRound.name,count:m.mix.topRound.cnt,ratio:r1(m.mix.topRound.ratio)}:null,
+      seedPreA:{count:m.mix.seed.cnt,eok:r1(m.mix.seed.eok),ratio:r1(m.mix.seed.ratio)},
+      concentrationByAmount:r1(m.mix.concByAmount),
+      keyDomainCovered:m.mix.keyCovered, keyDomainTotal:m.mix.keyTotal,
+      keyDomainMissing:m.mix.keyMissing,
+      nonKeyDomains:m.mix.nonKey.map(d=>({domain:d.domain,count:d.cnt,eok:r1(d.eok)})),
+      topDomain:m.mix.topDomain?{domain:m.mix.topDomain.domain,count:m.mix.topDomain.cnt,
+        eok:r1(m.mix.topDomain.eok),ratio:r1(m.mix.topDomain.ratio)}:null,
+    },
+    // [15차] 실행 우선순위 근거 — 화면에도 같은 숫자가 이미 표시된다
+    actions:{
+      earlyRemain:r1(m.actions.earlyRemain),
+      earlyDealsNeeded:m.actions.dealsNeeded,
+      earlyDealsPerSession:m.actions.dealsPerSession!=null?r1(m.actions.dealsPerSession):null,
+      sessionsLeft:m.actions.sessionsLeft,
+      avgDealEarly:r1(m.actions.avgDealEarly), avgDealAll:r1(m.actions.avgDealAll),
+      earlyCount:m.actions.earlyCnt, earlyKeyCount:m.actions.earlyKeyCnt,
+      earlyKeyRatio:m.actions.earlyKeyRatio!=null?r1(m.actions.earlyKeyRatio):null,
+    },
   };
 }
 
@@ -1387,8 +1745,9 @@ function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'
 // AI 문장: 하루 1회 + 숫자 서명 기준 캐시. 실패 시 신호등·숫자만.
 function fetchBriefingText(payload){
   const headlineEl=document.getElementById('brief-headline');
-  const sig=JSON.stringify(payload.kpis)+'|'+payload.asOf;
-  const cacheKey='brief-ai-'+payload.asOf;
+  // [15차] 서명에 트랙·페이스·구성까지 포함 (kpis만 보면 심층 데이터 변경을 놓친다). 캐시 키도 v2로 올림.
+  const sig=JSON.stringify(payload);
+  const cacheKey='brief-ai-v2-'+payload.asOf;
   try{
     const cached=JSON.parse(localStorage.getItem(cacheKey)||'null');
     if(cached&&cached.sig===sig&&cached.data){applyBriefingText(cached.data);return;}
