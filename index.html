@@ -117,7 +117,6 @@ body{background:var(--bg);color:var(--black);font-size:14px;line-height:1.6;-web
 .trk-fill.green{background:var(--ok)}
 .trk-fill.yellow{background:var(--or)}
 .trk-fill.red{background:var(--bad)}
-.trk-mark{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--gray);opacity:.7}
 .trk-num{text-align:right;color:var(--gray);white-space:nowrap}
 .trk-num b{font-weight:700;color:var(--black)}
 .trk-note{text-align:right;font-size:11px;color:var(--gray);white-space:nowrap}
@@ -295,7 +294,7 @@ table td,table th{font-variant-numeric:tabular-nums}
 @media(max-width:600px){.cards{grid-template-columns:1fr!important}.goal-banner{grid-template-columns:1fr!important}.wrap{padding:14px}}
 @media print{.hd .hd-r,.fbar,.sbar{display:none!important}.wrap{padding:0}.panel,.card{border:1px solid #ddd}}
 /* [추가] 극초기·회수 상세 테이블 — 셀 줄바꿈 방지 (좁아지면 .tw가 가로 스크롤) */
-#panel-early table td, #panel-exit table td{white-space:nowrap}
+#panel-early table td, #panel-exit table td, #panel-followup table td{white-space:nowrap}
 /* [추가] 회수 요약 3카드 — 줄바꿈 방지 + 정렬 통일 */
 .exit-summary-cards .card{display:flex;flex-direction:column}
 .exit-summary-cards .cl,
@@ -817,11 +816,11 @@ table td,table th{font-variant-numeric:tabular-nums}
 </div>
 <!-- /detail-split -->
 
-<!-- [수정-4차] 후속투자 상세 — E열 "후속투자 여부"가 "여"인 건을 최신순으로 나열 (아코디언, 기본 닫힘) -->
+<!-- [수정-4차] 누적 후속투자 상세 — E열 "후속투자 여부"가 "여"인 건을 기업 단위로 묶어 최근 후속투자순으로 나열 (아코디언, 기본 닫힘) -->
 <div class="panel collapsible collapsed" id="panel-followup">
   <div class="ph" onclick="togglePanel('panel-followup')">
-    <span class="ph-t" id="followup-tbl-title">후속투자 상세<span class="ph-chev">▼</span></span>
-    <span style="font-size:11px;color:var(--gray)">기업별 누적투자금액은 최초투자 포함 해당 시점까지 합산</span>
+    <span class="ph-t" id="followup-tbl-title">누적 후속투자 상세<span class="ph-chev">▼</span></span>
+    <span style="font-size:11px;color:var(--gray)">연도 필터와 무관하게 전체 기간 누적 · 누적투자금액은 최초투자 포함 전체 합산</span>
   </div>
   <div class="panel-body">
     <div class="tw">
@@ -1090,7 +1089,7 @@ function renderAll(){
   renderGoalBanner(yv);
   renderEarlySection(yv);
   renderExitSection(yv);
-  renderFollowupSection(yv);
+  renderFollowupSection();
 
   // [5차 추가] 컬럼 단위 비활성 처리
   const year=yv==='all'?null:+yv;
@@ -1240,51 +1239,46 @@ function renderEarlySection(yv){
   }).join('');
 }
 
-// [수정-4차] 후속투자 상세 — E열 "후속투자 여부"가 "여"인 건만 모아 최신순으로 보여준다.
-//   누적투자금액 = 같은 기업(dealIdent 기준)의 모든 투자 행을 그 후속투자 시점까지 합산 (최초투자 포함).
-function getFollowupDeals(yearFilter){
-  return rawData.filter(r=>{
-    if(String(r[COL.followFlag]||'').trim()!=='여')return false;
-    const info=qi(effDate(r));
-    if(!info)return false;
-    if(yearFilter&&info.y!==yearFilter)return false;
-    return true;
+// [수정-4차] 누적 후속투자 상세 — E열 "후속투자 여부"가 "여"인 건을 기업(dealIdent 기준) 단위로 묶어서 보여준다.
+//   연도 필터와 무관하게 항상 전체 기간 누적 — 기업 1개 = 1행, 후속투자일자는 그 기업의 모든 후속투자일을 나열.
+//   누적투자금액 = 같은 기업의 모든 투자 행(최초투자 포함) 전체 합산.
+function getFollowupCompanies(){
+  const byId={};
+  rawData.forEach(r=>{
+    if(String(r[COL.followFlag]||'').trim()!=='여')return;
+    const date=effDate(r);
+    if(!qi(date))return;
+    const id=dealIdent(r);
+    if(!byId[id])byId[id]={company:'',domain:'',dates:[]};
+    const entry=byId[id];
+    entry.company=(r[COL.company]||entry.company).trim()||entry.company;
+    entry.domain=(r[COL.minor]||entry.domain).trim()||entry.domain;
+    entry.dates.push(date);
+  });
+  return Object.keys(byId).map(id=>{
+    const entry=byId[id];
+    const cumWon=rawData.reduce((s,rr)=>dealIdent(rr)===id?s+parseAmt(rr[COL.amount]):s,0);
+    const sortedDates=entry.dates.slice().sort((a,b)=>Date.parse(a)-Date.parse(b));
+    const latestT=Math.max(...entry.dates.map(d=>{const t=Date.parse(d);return isNaN(t)?0:t;}));
+    return{company:entry.company||'—',domain:entry.domain||'미분류',cumEok:cumWon/1e8,dates:sortedDates,latestT};
   });
 }
-function renderFollowupSection(yv){
-  const year=yv==='all'?null:+yv;
-  const deals=getFollowupDeals(year);
+function renderFollowupSection(){
+  const companies=getFollowupCompanies();
   const titleEl=document.getElementById('followup-tbl-title');
-  if(titleEl)titleEl.innerHTML=`후속투자 상세 · ${deals.length}건<span class="ph-chev">▼</span>`;
+  if(titleEl)titleEl.innerHTML=`누적 후속투자 상세 · ${companies.length}개 기업<span class="ph-chev">▼</span>`;
   const tbody=document.getElementById('followup-tbl-body');
   if(!tbody)return;
-  if(!deals.length){
-    tbody.innerHTML='<tr><td colspan="4" class="empty-state">해당 기간 후속투자 없음</td></tr>';
+  if(!companies.length){
+    tbody.innerHTML='<tr><td colspan="4" class="empty-state">후속투자 없음</td></tr>';
     return;
   }
-  const rows=deals.map(r=>{
-    const date=effDate(r);
-    const t=Date.parse(date);
-    const id=dealIdent(r);
-    const cumWon=rawData.reduce((s,rr)=>{
-      if(dealIdent(rr)!==id)return s;
-      const rt=Date.parse(effDate(rr));
-      if(isNaN(rt)||isNaN(t)||rt>t)return s;
-      return s+parseAmt(rr[COL.amount]);
-    },0);
-    return{
-      company:(r[COL.company]||'—').trim()||'—',
-      domain:(r[COL.minor]||'미분류').trim(),
-      cumEok:cumWon/1e8,
-      date,
-      sortT:isNaN(t)?0:t,
-    };
-  }).sort((a,b)=>b.sortT-a.sortT);
+  const rows=companies.slice().sort((a,b)=>b.latestT-a.latestT);
   tbody.innerHTML=rows.map(r=>`<tr>
       <td class="tl" style="font-weight:600">${escapeHtml(r.company)}</td>
       <td class="tl">${escapeHtml(r.domain)}</td>
       <td class="mono tr" style="font-weight:600">${r.cumEok.toFixed(2)}</td>
-      <td class="mono tc">${escapeHtml(r.date)}</td>
+      <td class="mono tc">${escapeHtml(r.dates.join(', '))}</td>
     </tr>`).join('');
 }
 
@@ -1743,7 +1737,7 @@ function renderBriefing(yv){
   }).join('');
 
   renderBriefTracks(m);
-  renderBriefMix(m,lights);
+  renderBriefMix(m);
   renderBriefActions(m,lights);
   fetchBriefingText(buildAiMetrics(m,lights));
 }
@@ -1755,7 +1749,6 @@ function renderBriefTracks(m){
   const order=['normal','follow','early'].filter(k=>m.tracks[k]);
   if(!order.length){sec.hidden=true;return;}
   sec.hidden=false;
-  const elapsed=Math.min(m.pace.pct,100);
   document.getElementById('brief-tracks-note').textContent=
     `투자계획 기준 · 합계 ${m.budgetUsed.toFixed(1)}/${m.budgetLimit}억 (${m.budgetRate.toFixed(0)}%)`
     +` · 연중 ${m.pace.pct.toFixed(0)}% 경과`
@@ -1773,9 +1766,8 @@ function renderBriefTracks(m){
     }
     return `<div class="trk">
       <span class="trk-name">${t.label}</span>
-      <span class="trk-bar" title="집행 ${t.rate.toFixed(0)}% · 회색선=연중 경과율 ${m.pace.pct.toFixed(0)}%">
+      <span class="trk-bar" title="집행 ${t.rate.toFixed(0)}%">
         <span class="trk-fill ${t.light}" style="width:${Math.min(t.rate,100)}%"></span>
-        <span class="trk-mark" style="left:${elapsed}%"></span>
       </span>
       <span class="trk-num"><b>${t.eok.toFixed(1)}</b> / ${t.alloc}억 · ${t.rate.toFixed(0)}%</span>
       <span class="trk-note">${note}</span>
@@ -1784,17 +1776,16 @@ function renderBriefTracks(m){
 }
 
 // [15차] 구성 신호 — 극초기 미달·집중도의 구조적 원인을 한눈에
-function renderBriefMix(m,lights){
+function renderBriefMix(m){
   const sec=document.getElementById('brief-mix-sec'),box=document.getElementById('brief-mix');
   if(!sec||!box)return;
   const x=m.mix,chips=[];
-  if(x.topRound)chips.push({t:`최다 라운드 <b>${escapeHtml(x.topRound.name)} ${x.topRound.ratio.toFixed(0)}%</b> (${x.topRound.cnt}건)`});
-  chips.push({warn:lights.early!=='green',
-    t:`시드·Pre-A 비중 <b>${x.seed.ratio.toFixed(1)}%</b> (${x.seed.cnt}건 ${x.seed.eok.toFixed(1)}억)`});
-  if(x.keyMissing.length)chips.push({warn:lights.conc!=='green',
-    t:`핵심 도메인 미투자 <b>${x.keyMissing.length}개</b> · ${x.keyMissing.slice(0,4).map(d=>escapeHtml(KEY_SHORT[d]||d)).join(', ')}${x.keyMissing.length>4?' 외':''}`});
+  // [수정-4차] 노란 하이라이트는 "최다"(편중) 칩에만 — 동적 신호등 조건부 강조는 제거
+  if(x.topRound)chips.push({warn:true,t:`최다 라운드 <b>${escapeHtml(x.topRound.name)} ${x.topRound.ratio.toFixed(0)}%</b> (${x.topRound.cnt}건)`});
+  chips.push({t:`시드·Pre-A 비중 <b>${x.seed.ratio.toFixed(1)}%</b> (${x.seed.cnt}건 ${x.seed.eok.toFixed(1)}억)`});
+  if(x.keyMissing.length)chips.push({t:`핵심 도메인 미투자 <b>${x.keyMissing.length}개</b> · ${x.keyMissing.slice(0,4).map(d=>escapeHtml(KEY_SHORT[d]||d)).join(', ')}${x.keyMissing.length>4?' 외':''}`});
   // 핵심 도메인 안에서의 편중 — 한 도메인이 과도하면 집중도가 높아도 분산 리스크가 있다
-  if(x.topDomain)chips.push({t:`최다 도메인 <b>${escapeHtml(KEY_SHORT[x.topDomain.domain]||x.topDomain.domain)} ${x.topDomain.ratio.toFixed(0)}%</b> (${x.topDomain.cnt}건 ${x.topDomain.eok.toFixed(1)}억)`});
+  if(x.topDomain)chips.push({warn:true,t:`최다 도메인 <b>${escapeHtml(KEY_SHORT[x.topDomain.domain]||x.topDomain.domain)} ${x.topDomain.ratio.toFixed(0)}%</b> (${x.topDomain.cnt}건 ${x.topDomain.eok.toFixed(1)}억)`});
   if(x.nonKey.length){
     const c=x.nonKey.reduce((s,d)=>s+d.cnt,0),a=x.nonKey.reduce((s,d)=>s+d.eok,0);
     chips.push({t:`비핵심 도메인 <b>${c}건 ${a.toFixed(1)}억</b> · ${x.nonKey.slice(0,3).map(d=>escapeHtml(d.domain)).join(', ')}${x.nonKey.length>3?' 외':''}`});
