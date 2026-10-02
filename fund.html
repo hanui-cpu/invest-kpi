@@ -492,7 +492,7 @@ table td,table th{font-variant-numeric:tabular-nums}
   </div>
 </div>
 <!-- [17차] 득점률 산출식 각주 -->
-<div class="fund-score-footnote">* 달성률 = 실적 / 목표 기준액 × 100% · 득점률 = 달성률 ÷ 목표율 (KPI 1: 100% · KPI 2: 110% · KPI 3: 100%), 최대 100%</div>
+<div class="fund-score-footnote">* 달성률 = 실적 / 목표 기준액 × 100% · 득점률 = 달성률 ÷ 목표율 (KPI 1: 100% · KPI 2: 110% · KPI 3: 100%)</div>
 
 <!-- [16차] 메타 바 삭제 — 상단 cutoff 칩과 중복 -->
 
@@ -1859,9 +1859,9 @@ function applyFundCutoff(){
     ['domain','gpDomestic','gpIntl'].forEach(k=>{
       const o=fundData[k];
       if(o && o.target>0){
-        // [18차] 달성률 = 실적/목표 기준액 · 득점률 = 실적/(기준액×목표율), 0~100% 클램프
+        // [18차] 달성률 = 실적/목표 기준액 · 득점률 = 실적/(기준액×목표율) — 상한 없음
         o.rate=o.baseTarget>0?o.actual/o.baseTarget:0;
-        o.score=Math.max(0,Math.min(o.actual/o.target,1));
+        o.score=Math.max(0,o.actual/o.target);
       }
     });
     return;
@@ -1875,10 +1875,10 @@ function applyFundCutoff(){
   });
   fundData.domain.funds=filteredDom;
   fundData.domain.actual=filteredDom.reduce((s,f)=>s+(f.commitment||0),0);
-  // [18차] 달성률(rate) = 실적 / 목표 기준액(280억) · 득점률(score) = 달성률 ÷ 목표율(100%) — 0~100% 클램프
+  // [18차] 달성률(rate) = 실적 / 목표 기준액(280억) · 득점률(score) = 달성률 ÷ 목표율(100%) — 상한 없음 (그래프 폭만 100% 캡)
   fundData.domain.rate=fundData.domain.baseTarget>0?fundData.domain.actual/fundData.domain.baseTarget:0;
   fundData.domain.score=fundData.domain.target>0
-    ?Math.max(0,Math.min(fundData.domain.actual/fundData.domain.target,1)):0;
+    ?Math.max(0,fundData.domain.actual/fundData.domain.target):0;
 
   // ━ KPI2: 운용사 협력 (국내) ━━━━━━━━━━━━━━━━━━
   const allDeals=fundData._allDeals||fundData.deals||[];
@@ -1888,10 +1888,10 @@ function applyFundCutoff(){
     return dn && dn<=cutoff;
   });
   fundData.gpDomestic.actual=filteredKDeals.reduce((s,d)=>s+(d.amount||0),0);
-  // [18차] 달성률 = 실적 / 목표 기준액(326.1억) · 득점률 = 달성률 ÷ 110% — 0~100% 클램프
+  // [18차] 달성률 = 실적 / 목표 기준액(326.1억) · 득점률 = 달성률 ÷ 110% — 상한 없음
   fundData.gpDomestic.rate=fundData.gpDomestic.baseTarget>0?fundData.gpDomestic.actual/fundData.gpDomestic.baseTarget:0;
   fundData.gpDomestic.score=fundData.gpDomestic.target>0
-    ?Math.max(0,Math.min(fundData.gpDomestic.actual/fundData.gpDomestic.target,1)):0;
+    ?Math.max(0,fundData.gpDomestic.actual/fundData.gpDomestic.target):0;
   // 펀드별 executed26 재계산 (cutoff까지 deal 합산)
   if(fundData.gpDomestic._allFunds){
     fundData.gpDomestic.funds=fundData.gpDomestic._allFunds.map(f=>{
@@ -1923,10 +1923,10 @@ function applyFundCutoff(){
       fundData.gpIntl.target=baseKrw*FUND_TARGETS.gpIntl;
     }
   }
-  // 달성률 = 실적 / 목표 기준액 · 득점률 = 달성률 ÷ 100% — 0~100% 클램프
+  // 달성률 = 실적 / 목표 기준액 · 득점률 = 달성률 ÷ 100% — 상한 없음
   fundData.gpIntl.rate=fundData.gpIntl.baseTarget>0?fundData.gpIntl.actual/fundData.gpIntl.baseTarget:0;
   fundData.gpIntl.score=fundData.gpIntl.target>0
-    ?Math.max(0,Math.min(fundData.gpIntl.actual/fundData.gpIntl.target,1)):0;
+    ?Math.max(0,fundData.gpIntl.actual/fundData.gpIntl.target):0;
   // 표 A (해외펀드 detail): cutoff 환율로 원화 컬럼 재계산 + 펀드별 executedKrw를 deal 매칭으로 합산
   if(fundData.gpIntl._allFunds){
     const fx=fxAt(cutoff);
@@ -1965,10 +1965,10 @@ function renderFundAll(){
 
 function renderFundBanner(){
   const d=fundData.domain,gd=fundData.gpDomestic,gi=fundData.gpIntl;
-  // [18차] 득점률은 score 사용 — KPI1: 실적/기준(280억), KPI2·3: 실적/목표 (모두 0~100% 클램프)
-  const sD=Math.max(0,Math.min(1,d.score||0));
-  const sGd=Math.max(0,Math.min(1,gd.score||0));
-  const sGi=Math.max(0,Math.min(1,gi.score||0));
+  // [18차] 득점률 = 달성률 ÷ 목표율 — 상한 없이 그대로 표시 (100% 초과 가능)
+  const sD=Math.max(0,d.score||0);
+  const sGd=Math.max(0,gd.score||0);
+  const sGi=Math.max(0,gi.score||0);
   const totalScore=sD*FUND_WEIGHTS.domain+sGd*FUND_WEIGHTS.gpDomestic+sGi*FUND_WEIGHTS.gpIntl;
   document.getElementById('fund-total-val').textContent=(totalScore*100).toFixed(1)+'%';
   document.getElementById('fund-total-sub').textContent=
