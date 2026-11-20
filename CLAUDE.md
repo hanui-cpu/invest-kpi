@@ -1,11 +1,15 @@
 # dcamp KPI 대시보드 (invest-kpi) — AI 작업 지침
 
-빌드 도구 없는 정적 사이트 + Vercel 서버리스 함수. 사람용 절차는 `MAINTENANCE.md` 참고.
+빌드 도구 없는 정적 페이지 + Node 서버(`server.js`)가 `api/*.js`를 실행. 사람용 절차는 `MAINTENANCE.md` 참고.
 
 ## 배포 파이프라인 (절대 규칙)
 
-- **main에 머지되면 Vercel이 자동 배포**한다 (dcamp-invest-kpi.vercel.app, 1~2분).
-- **Vercel 수동 배포 금지.** GitHub main이 유일한 진실이다. 수동 배포는 코드-실서비스 불일치 사고를 만든다(2026-07 실제 발생).
+- **배포처는 사내 dcamp playground**다 (https://invest-kpi.playground.dcamp.kr, 프로젝트 slug `invest-kpi`). 보안 정책으로 Vercel 등 외부 플랫폼 사용 금지 → 2026-11-20 이전. **Vercel 프로젝트(dcamp-invest-kpi)는 일시정지 상태 — 다시 켜지 말 것** (켜면 비공개 시트 데이터가 로그인 없이 노출된다).
+- **main에 머지되면 playground가 Dockerfile로 빌드해 자동 배포**한다(1~2분). GitHub main이 유일한 진실 — 포털에서 다른 브랜치를 수동 배포하지 말 것.
+- 접근: 비공개 + 팀 초대(투자전략팀·펀드팀). 회사 구글 로그인 뒤에만 열린다. 범위 변경은 playground 포털(또는 playground MCP)에서.
+- 환경변수(`GOOGLE_SERVICE_ACCOUNT_JSON`, `GEMINI_API_KEY`, 선택 `GSA_KEY`)는 playground 프로젝트 설정에 있다. 바꾸면 **재배포해야 적용**된다.
+- `server.js`는 Vercel 런타임 흉내(req.query/req.body, res.status().json()/send())만 한다. 새 api 함수를 추가하면 `server.js`의 `API` 표에 등록하고, 새 정적 파일은 `STATIC_FILES`(허용 목록)에 넣어야 서비스된다 — 목록에 없으면 404(소스 노출 방지용 의도된 동작).
+- PR 미리보기 배포는 없다. 실데이터 검증은 로컬에서 `node server.js`(env 필요) 또는 머지 후 실서비스에서.
 - 작업은 항상 브랜치 + PR로. main 직접 푸시 금지. 잘못 머지되면 PR의 Revert 사용.
 - 사용자가 GitHub 웹 에디터만 쓸 수 있게 안내할 것 (git CLI 강요 금지).
 
@@ -20,6 +24,7 @@
 | `api/briefing.js` | AI 브리핑 생성 | 투자팀 |
 | `api/funds.js` | 시뮬레이터용 펀드 데이터 (시트 실시간) | 펀드팀 |
 | `funds_data.js` | 시뮬레이터 오프라인 스냅샷 (api 실패 시 폴백) | 펀드팀 |
+| `server.js` · `Dockerfile` | playground 배포용 서버(정적 허용 목록 + api 라우팅) | 투자팀 |
 
 핵심 불변식:
 
@@ -33,8 +38,7 @@
 - 두 대시보드: `fetchCsvRows()` → `/api/sheet?doc=…` (시트는 비공개, 서버 함수가 로봇 계정으로 읽음). env: `GOOGLE_SERVICE_ACCOUNT_JSON`.
 - 시뮬레이터: `fetch('api/funds')` → 실패 시 `funds_data.js` 스냅샷("로컬 모드" 표시). env: `GSA_KEY` 우선, 없으면 `GOOGLE_SERVICE_ACCOUNT_JSON` 재사용.
 - 타임스탬프는 KST(Asia/Seoul)로 변환해 내보낸다 — 서버는 UTC이므로 `toISOString()` 그대로 쓰면 9시간 늦게 보인다(수정된 버그, 재발 금지).
-- `fetchCsvRows`의 fetch는 `credentials:'same-origin'` — Vercel 프리뷰(SSO 보호)에서 API가 동작하기 위한 설정이니 'omit'으로 되돌리지 말 것.
-- Vercel 환경변수는 Production에만 적용되어 있을 수 있음 → 프리뷰에서 데이터 500은 env 범위 문제이지 코드 버그가 아닐 수 있다.
+- `fetchCsvRows`의 fetch는 `credentials:'same-origin'` — playground 로그인 쿠키가 api 요청에 실려야 하므로 'omit'으로 되돌리지 말 것.
 
 ## 알려진 함정 (실제 발생 사례)
 
